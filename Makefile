@@ -1,16 +1,24 @@
 # Makefile
 
 # Compiler and Flags
-CXX = clang++
-CXXFLAGS = -std=c++17 -stdlib=libc++ \
-           -I. -Iimgui -Ibackends -Imodules \
-           -I/opt/homebrew/include/SDL2 \
-           -I/opt/homebrew/Cellar/dbus/1.14.10/include/dbus-1.0 \
-           -I/opt/homebrew/Cellar/dbus/1.14.10/lib/dbus-1.0/include \
-           -DGL_SILENCE_DEPRECATION
+CXX = g++
+CXXFLAGS_COMMON = -std=c++17 \
+                  -I. -Iimgui -Ibackends -Imodules \
+                  -DGL_SILENCE_DEPRECATION
 
-# Linker Flags
-LDFLAGS = -L/opt/homebrew/lib -lSDL2 -ldbus-1 -framework OpenGL
+CXXFLAGS_MAC = $(CXXFLAGS_COMMON) \
+               -stdlib=libc++ \
+               -I/opt/homebrew/include/SDL2 \
+               -I/opt/homebrew/Cellar/dbus/1.14.10/include/dbus-1.0 \
+               -I/opt/homebrew/Cellar/dbus/1.14.10/lib/dbus-1.0/include
+
+CXXFLAGS_PI = $(CXXFLAGS_COMMON) \
+              -I/usr/include/SDL2 \
+              -I/usr/include/dbus-1.0 \
+              -I/usr/lib/dbus-1.0/include
+
+LDFLAGS_MAC = -L/opt/homebrew/lib -lSDL2 -ldbus-1 -framework OpenGL
+LDFLAGS_PI = -L/usr/lib -lSDL2 -ldbus-1 -lGL
 
 # Source Files
 SOURCES = main.cpp \
@@ -28,16 +36,16 @@ SOURCES = main.cpp \
 OUTPUT_MAC = radioBT_mac
 OUTPUT_PI = radioBT_pi
 
-# Default Target (Build for macOS with NO_DBUS)
+# Default Target
 all: $(OUTPUT_MAC)
 
-# Build for macOS (with NO_DBUS)
+# Build for macOS
 $(OUTPUT_MAC): $(SOURCES)
-	$(CXX) $(CXXFLAGS) -DNO_DBUS $(SOURCES) $(LDFLAGS) -o $(OUTPUT_MAC)
+	$(CXX) $(CXXFLAGS_MAC) -DNO_DBUS $(SOURCES) $(LDFLAGS_MAC) -o $(OUTPUT_MAC)
 
-# Build for Raspberry Pi (without NO_DBUS)
+# Build for Raspberry Pi
 build_pi: $(SOURCES)
-	$(CXX) $(CXXFLAGS) $(SOURCES) $(LDFLAGS) -o $(OUTPUT_PI)
+	$(CXX) $(CXXFLAGS_PI) $(SOURCES) $(LDFLAGS_PI) -o $(OUTPUT_PI)
 
 # Clean Build Artifacts
 clean:
