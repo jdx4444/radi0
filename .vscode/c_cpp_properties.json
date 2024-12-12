@@ -1,0 +1,27 @@
+{
+    "configurations": [
+        {
+            "name": "Mac",
+            "includePath": [
+                "${workspaceFolder}",
+                "${workspaceFolder}/imgui",
+                "${workspaceFolder}/backends",
+                "${workspaceFolder}/modules",
+                "/opt/homebrew/include/SDL2",
+                "/opt/homebrew/Cellar/dbus/1.14.10/include/dbus-1.0",
+                "/opt/homebrew/Cellar/dbus/1.14.10/lib/dbus-1.0/include"
+            ],
+            "defines": [
+                "GL_SILENCE_DEPRECATION"
+            ],
+            "macFrameworkPath": [
+                "/System/Library/Frameworks",
+                "/Library/Frameworks"
+            ],
+            "compilerPath": "/usr/bin/clang++",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "macos-clang-arm64" // or "macos-clang-x64" depending on your system
+        }
+    ],
+    "version": 4
+}

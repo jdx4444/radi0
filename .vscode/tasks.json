@@ -1,0 +1,41 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build ImGui Project (SDL2)",
+            "type": "shell",
+            "command": "clang++",
+            "args": [
+                "-std=c++17",
+                "-stdlib=libc++",
+                "-DNO_DBUS",
+                "-I.",
+                "-Iimgui",
+                "-Ibackends",
+                "-Imodules",
+                "-I/opt/homebrew/include/SDL2",
+                "-I/opt/homebrew/Cellar/dbus/1.14.10/include/dbus-1.0",
+                "-I/opt/homebrew/Cellar/dbus/1.14.10/lib/dbus-1.0/include",
+                "-DGL_SILENCE_DEPRECATION",
+                "main.cpp",
+                "modules/BluetoothAudioManager.cpp",
+                "modules/Sprite.cpp",
+                "modules/UI.cpp",
+                "imgui/imgui.cpp",
+                "imgui/imgui_draw.cpp",
+                "imgui/imgui_widgets.cpp",
+                "imgui/imgui_tables.cpp",
+                "backends/imgui_impl_sdl2.cpp",
+                "backends/imgui_impl_opengl3.cpp",
+                "-L/opt/homebrew/lib",
+                "-lSDL2",
+                "-ldbus-1",
+                "-framework", "OpenGL",
+                "-o", "radioBT"
+            ],
+            "group": { "kind": "build", "isDefault": true },
+            "problemMatcher": ["$gcc"],
+            "detail": "Build task for the Radio Project"
+        }
+    ]
+}
