@@ -1,7 +1,11 @@
 #include <stdio.h>
 #include <SDL.h>
-#include <OpenGL/gl3.h>
 
+#ifdef __APPLE__
+#include <OpenGL/gl3.h>
+#else
+#include <GL/gl.h>
+#endif
 
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"

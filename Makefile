@@ -14,8 +14,7 @@ CXXFLAGS_MAC = $(CXXFLAGS_COMMON) \
 
 CXXFLAGS_PI = $(CXXFLAGS_COMMON) \
               -I/usr/include/SDL2 \
-              -I/usr/include/dbus-1.0 \
-              -I/usr/lib/dbus-1.0/include
+              -I/usr/include/dbus-1.0
 
 LDFLAGS_MAC = -L/opt/homebrew/lib -lSDL2 -ldbus-1 -framework OpenGL
 LDFLAGS_PI = -L/usr/lib -lSDL2 -ldbus-1 -lGL
@@ -41,11 +40,11 @@ all: $(OUTPUT_MAC)
 
 # Build for macOS
 $(OUTPUT_MAC): $(SOURCES)
-	$(CXX) $(CXXFLAGS_MAC) -DNO_DBUS $(SOURCES) $(LDFLAGS_MAC) -o $(OUTPUT_MAC)
+	$(CXX) $(CXXFLAGS_MAC) -DNO_DBUS -v $(SOURCES) $(LDFLAGS_MAC) -o $(OUTPUT_MAC)
 
 # Build for Raspberry Pi
 build_pi: $(SOURCES)
-	$(CXX) $(CXXFLAGS_PI) $(SOURCES) $(LDFLAGS_PI) -o $(OUTPUT_PI)
+	$(CXX) $(CXXFLAGS_PI) -DNO_DBUS -v $(SOURCES) $(LDFLAGS_PI) -o $(OUTPUT_PI)
 
 # Clean Build Artifacts
 clean:
