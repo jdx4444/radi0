@@ -10,39 +10,55 @@ UI::~UI() {}
 
 void UI::Initialize()
 {
-    // No changes needed here at the moment
+    // Nothing special
 }
 
-void UI::Render(ImDrawList* draw_list, BluetoothAudioManager& audioManager,
-                Sprite& sprite, float scale_x, float scale_y)
+void UI::Render(ImDrawList* draw_list,
+                BluetoothAudioManager& audioManager,
+                Sprite& sprite,
+                float scale_x, float scale_y)
 {
-    // -------------------------------------------------------------------------
-    // CHANGED: Because our virtual coordinate system is 80×30,
-    // let's put the progress bar near the bottom: e.g. at y=28
-    // We'll run from x=2 to x=78, leaving a margin
-    // -------------------------------------------------------------------------
-    float line_start_x = 2.0f;
-    float line_end_x   = 78.0f;
-    float line_y       = 28.0f;
+    /*
+      We have an 80×30 virtual canvas (from your main.cpp).
+      We'll define a horizontal “center region” from x=15..65 (50 wide),
+      and place the progress bar around y=18 for a near‐centered look.
+      We'll stack the artist name / track name above it, and
+      the volume bar somewhat above that as well.
 
+      You can tweak these numbers however you like—this is just
+      a simple example to get everything centered-ish.
+    */
+
+    // 1) Progress bar
+    float line_start_x = 15.0f; // left edge
+    float line_end_x   = 65.0f; // right edge
+    float line_y       = 18.0f; // near vertical center
     DrawProgressLine(draw_list, audioManager,
                      line_start_x, line_end_x, line_y,
                      scale_x, scale_y);
 
-    // Move the car sprite along that line
+    // Place the time underneath (about 1 unit below)
+    DrawTimeRemaining(draw_list, audioManager,
+                      scale_x, scale_y,
+                      line_start_x, line_end_x,
+                      line_y + 1.0f);
+
+    // 2) Sprite on the bar
     sprite.UpdatePosition(audioManager.GetPlaybackFraction(),
                           line_start_x, line_end_x,
                           scale_x, scale_y,
-                          /* sprite_x_offset = */ -1.5f, // small tweak
-                          /* sprite_y_offset = */ -2.0f);
-
+                          /* xOffset=*/-1.0f,
+                          /* yOffset=*/-4.0f);
     sprite.Draw(draw_list, COLOR_GREEN);
 
-    // Mask bars to “hide” the edges of the sprite if desired
-    DrawMaskBars(draw_list, scale_x, scale_y, line_start_x, line_end_x, line_y);
+    // (Optional) mask bars so the sprite doesn't peek out the ends
+    DrawMaskBars(draw_list, scale_x, scale_y,
+                 line_start_x, line_end_x, line_y);
 
-    DrawTimeRemaining(draw_list, audioManager, scale_x, scale_y);
+    // 3) Artist / track name above the bar
     DrawArtistAndTrackInfo(draw_list, audioManager, scale_x, scale_y);
+
+    // 4) Volume bar also near the center (above everything else)
     DrawVolumeBar(draw_list, audioManager, scale_x, scale_y);
 }
 
@@ -51,97 +67,121 @@ void UI::Cleanup()
     // Nothing special
 }
 
-void UI::DrawProgressLine(ImDrawList* draw_list, BluetoothAudioManager& audioManager,
+//--------------------------------------------------------------------------------------
+// REVERTED: single-line progress bar from the original
+//--------------------------------------------------------------------------------------
+void UI::DrawProgressLine(ImDrawList* draw_list,
+                          BluetoothAudioManager& audioManager,
                           float line_start_x, float line_end_x, float line_y,
                           float scale_x, float scale_y)
 {
-    // You might want some “background line” plus the green “fill”
-    float progress_fraction = audioManager.GetPlaybackFraction();
-
+    // Convert virtual coords → screen
     ImVec2 p1 = ToPixels(line_start_x, line_y, scale_x, scale_y);
     ImVec2 p2 = ToPixels(line_end_x,   line_y, scale_x, scale_y);
 
-    // Dark grey line behind
-    draw_list->AddLine(p1, p2, IM_COL32(80, 80, 80, 255), 6.0f);
-    // Green line on top
-    float total_length = (p2.x - p1.x);
-    ImVec2 p2_fraction = ImVec2(p1.x + total_length * progress_fraction, p2.y);
-    draw_list->AddLine(p1, p2_fraction, COLOR_GREEN, 4.0f);
+    // A single solid green line (with a slight grey behind it, as originally)
+    // The original code had two lines to create a green “thickness.”
+    // “2.0f” was the grey line thickness, then “4.0f” for green on top.
+
+    draw_list->AddLine(p1, p2, IM_COL32(100, 100, 100, 255), 2.0f); // behind
+    draw_list->AddLine(p1, p2, COLOR_GREEN, 4.0f);                  // on top
 }
 
-// "mask" rectangles near each end of the line, if you want to hide the sprite
-// when it goes out of the progress bar. This is optional/flair.
+//--------------------------------------------------------------------------------------
+// (Optional) mask rectangles at each end of the line to hide sprite edges
+//--------------------------------------------------------------------------------------
 void UI::DrawMaskBars(ImDrawList* draw_list,
                       float scale_x, float scale_y,
                       float line_start_x, float line_end_x, float line_y)
 {
-    // These are optional black “bars” that hide the sprite at the ends
-    float mask_width  = 1.0f;  // 1 virtual unit wide
-    float mask_height = 1.0f;  // 1 virtual unit high
+    // Same as original approach: just some small black bars at the ends
+    // so the car sprite doesn’t appear “off” the line.
+    // Tweak as you like or remove if you don’t need it.
+    float mask_width  = 1.0f;
+    float mask_height = 0.5f;
 
-    // Left mask
-    ImVec2 left_top  = ToPixels(line_start_x - mask_width, line_y - mask_height*0.5f,
-                                scale_x, scale_y);
-    ImVec2 left_bot  = ToPixels(line_start_x, line_y + mask_height*0.5f,
-                                scale_x, scale_y);
-    draw_list->AddRectFilled(left_top, left_bot, COLOR_BLACK);
+    ImVec2 left_top  = ToPixels(line_start_x - mask_width,
+                                line_y - mask_height, scale_x, scale_y);
+    ImVec2 left_bot  = ToPixels(line_start_x,
+                                line_y + mask_height, scale_x, scale_y);
 
-    // Right mask
-    ImVec2 right_top = ToPixels(line_end_x, line_y - mask_height*0.5f,
-                                scale_x, scale_y);
-    ImVec2 right_bot = ToPixels(line_end_x + mask_width, line_y + mask_height*0.5f,
-                                scale_x, scale_y);
+    ImVec2 right_top = ToPixels(line_end_x,
+                                line_y - mask_height, scale_x, scale_y);
+    ImVec2 right_bot = ToPixels(line_end_x + mask_width,
+                                line_y + mask_height, scale_x, scale_y);
+
+    draw_list->AddRectFilled(left_top,  left_bot,  COLOR_BLACK);
     draw_list->AddRectFilled(right_top, right_bot, COLOR_BLACK);
 }
 
-void UI::DrawTimeRemaining(ImDrawList* draw_list, BluetoothAudioManager& audioManager,
-                           float scale_x, float scale_y)
+//--------------------------------------------------------------------------------------
+// Put the time *under* the bar (reverted to the original logic).
+//--------------------------------------------------------------------------------------
+void UI::DrawTimeRemaining(ImDrawList* draw_list,
+                           BluetoothAudioManager& audioManager,
+                           float scale_x, float scale_y,
+                           float line_start_x, float line_end_x,
+                           float line_y)
 {
-    // Let's put the time string slightly above the progress bar
-    // Example: at virtual coords (40, 26.5) so it’s near the center
-    // Tweak to taste
-    ImVec2 timePos = ToPixels(40.0f, 26.5f, scale_x, scale_y);
+    // We'll place the text in the same horizontal span as the bar (15..65)
+    // but at line_y in “virtual coords.” We want it centered horizontally
+    // within that region. The original logic used a small “progress_bar_size,”
+    // but we can do it directly here.
 
-    // We'll center the text in a small region, so we measure text size
-    std::string time_remaining = audioManager.GetTimeRemaining();
-    ImVec2 text_size = ImGui::CalcTextSize(time_remaining.c_str());
+    float region_width = (line_end_x - line_start_x);
 
-    // Move the “cursor” so text is centered on (40,26.5)
-    ImGui::SetCursorPos(ImVec2(timePos.x - text_size.x*0.5f,
-                               timePos.y - text_size.y*0.5f));
+    // Where we want the top-left of the text “region” to be
+    // (We’ll offset it slightly downward if you like.)
+    ImVec2 region_pos = ToPixels(line_start_x, line_y, scale_x, scale_y);
 
-    // A slightly bigger font
-    ImGui::SetWindowFontScale(1.4f);
-    ImGui::TextUnformatted(time_remaining.c_str());
-    ImGui::SetWindowFontScale(1.0f);
+    // The time string
+    std::string time_str = audioManager.GetTimeRemaining();
+    ImVec2 text_size = ImGui::CalcTextSize(time_str.c_str());
+
+    // Compute how many pixels wide the bar region is
+    float region_width_pixels = region_width * scale_x;
+
+    // The x pos that will center the text in that region
+    float text_x = region_pos.x + (region_width_pixels - text_size.x) * 0.5f;
+
+    // If you want the text slightly below the bar, just add a few pixels:
+    float text_y = region_pos.y + (5.0f);
+
+    // Position the text
+    ImGui::SetCursorPos(ImVec2(text_x, text_y));
+    ImGui::Text("%s", time_str.c_str());
 }
 
+//--------------------------------------------------------------------------------------
+// Center the artist & track name. 
+// We’ll place them a bit *above* the progress bar in the vertical center region.
+//--------------------------------------------------------------------------------------
 void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
                                 BluetoothAudioManager& audioManager,
                                 float scale_x, float scale_y)
 {
-    // Example: put the artist name around (10, 10)
-    // and track name around (10, 12). Tweak to taste.
-    // We'll do some simple scrolling if text is too wide.
+    // We'll pick some coordinates so that the text is centered horizontally at x=40,
+    // and near y=12..13 in your 80×30 space. We also do horizontal “clipping” if text is too wide.
 
-    ImVec2 artist_pos = ToPixels(10.0f, 10.0f, scale_x, scale_y);
-    ImVec2 track_pos  = ToPixels(10.0f, 12.0f, scale_x, scale_y);
-
-    // Hard-coded for now:
+    // Hard-coded sample artist & track
     const char* artist_name = "Tigers Jaw";
     const char* track_name  = "Never Saw It Coming";
 
-    // Let's pick a bigger scale
-    float big_font = 1.7f;
+    // We'll define a region from x=15..65 again (the same 50 wide region we used for the bar),
+    // but place them around y=12 and y=13, respectively.
+    float region_left_x = 15.0f;
+    float region_right_x = 65.0f;
+    float region_width = region_right_x - region_left_x;
+    
+    // Artist near y=12
+    float artist_y = 12.0f;
+    ImVec2 artist_pos = ToPixels(region_left_x, artist_y, scale_x, scale_y);
+    float label_width_in_pixels = region_width * scale_x;
 
-    // We can show the artist name with scrolling if it’s too long
-    ImGui::SetWindowFontScale(big_font);
+    ImGui::SetWindowFontScale(1.4f); // bigger text
     ImVec2 text_size = ImGui::CalcTextSize(artist_name);
 
-    // Define some maximum “label width” in virtual space, say 40 units
-    float label_width_in_pixels = 40.0f * scale_x;
-
-    // If text is wider than that, we scroll
+    // We can do simple scrolling if text is too wide
     static float artist_scroll_offset = 0.0f;
     float dt = ImGui::GetIO().DeltaTime * 30.0f; // scroll speed
     if (text_size.x > label_width_in_pixels) {
@@ -152,14 +192,13 @@ void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
         artist_scroll_offset = 0.0f;
     }
 
-    ImVec2 window_pos = ImGui::GetWindowPos();
-    ImVec2 clip_min = ImVec2(artist_pos.x, artist_pos.y);
+    // Clip rect
+    ImVec2 clip_min = artist_pos;
     ImVec2 clip_max = ImVec2(artist_pos.x + label_width_in_pixels,
                              artist_pos.y + text_size.y);
-
     draw_list->PushClipRect(clip_min, clip_max, true);
 
-    // Shift the text left by scroll_offset
+    // Move the text left by offset
     ImGui::SetCursorPos(ImVec2(artist_pos.x - artist_scroll_offset,
                                artist_pos.y));
     ImGui::TextUnformatted(artist_name);
@@ -167,73 +206,83 @@ void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
 
     ImGui::SetWindowFontScale(1.0f);
 
-    // Now do the track name similarly but a bit smaller
-    float track_font = 1.4f;
-    ImGui::SetWindowFontScale(track_font);
-
+    // Track name near y=13
+    float track_y = 13.0f;
+    ImVec2 track_pos = ToPixels(region_left_x, track_y, scale_x, scale_y);
+    ImGui::SetWindowFontScale(1.2f);
     text_size = ImGui::CalcTextSize(track_name);
-    float track_label_width = 40.0f * scale_x;
-    static float track_scroll_offset = 0.0f;
 
-    if (text_size.x > track_label_width) {
+    static float track_scroll_offset = 0.0f;
+    if (text_size.x > label_width_in_pixels) {
         track_scroll_offset += dt;
         if (track_scroll_offset > text_size.x)
-            track_scroll_offset = -track_label_width;
+            track_scroll_offset = -label_width_in_pixels;
     } else {
         track_scroll_offset = 0.0f;
     }
 
-    clip_min = ImVec2(track_pos.x, track_pos.y);
-    clip_max = ImVec2(track_pos.x + track_label_width,
+    clip_min = track_pos;
+    clip_max = ImVec2(track_pos.x + label_width_in_pixels,
                       track_pos.y + text_size.y);
     draw_list->PushClipRect(clip_min, clip_max, true);
-    ImGui::SetCursorPos(ImVec2(track_pos.x - track_scroll_offset,
-                               track_pos.y));
-    ImGui::TextUnformatted(track_name);
-    draw_list->PopClipRect();
 
+    ImGui::SetCursorPos(ImVec2(track_pos.x - track_scroll_offset, track_pos.y));
+    ImGui::TextUnformatted(track_name);
+
+    draw_list->PopClipRect();
     ImGui::SetWindowFontScale(1.0f);
 }
 
+//--------------------------------------------------------------------------------------
+// Center the volume bar horizontally near the top (y=7).
+//--------------------------------------------------------------------------------------
 void UI::DrawVolumeBar(ImDrawList* draw_list,
                        BluetoothAudioManager& audioManager,
                        float scale_x, float scale_y)
 {
-    // Let’s put the volume near top right. For example, x=65, y=2
-    ImVec2 volume_label_pos = ToPixels(65.0f, 2.0f, scale_x, scale_y);
-    ImGui::SetCursorPos(volume_label_pos);
+    // We'll use the same horizontal region from x=15..65.
+    float region_left_x = 15.0f;
+    float region_right_x = 65.0f;
+    float region_width = region_right_x - region_left_x;
+    float volume_y = 7.0f;
+
+    // The label "Vol:" is placed at the left edge, and the bar to the right of that
+    ImVec2 label_pos = ToPixels(region_left_x, volume_y, scale_x, scale_y);
+    ImGui::SetCursorPos(label_pos);
     ImGui::TextUnformatted("Vol:");
-
-    // We'll draw a bar next to that
     ImVec2 text_size = ImGui::CalcTextSize("Vol:");
-    float bar_x = volume_label_pos.x + text_size.x + 10.0f;
-    float bar_y = volume_label_pos.y;
 
-    // Some arbitrary size for the bar
-    float bar_width  = 10.0f * scale_x;
-    float bar_height = 0.8f * scale_y;
+    float bar_x = label_pos.x + text_size.x + 10.0f; // a small gap
+    float bar_y = label_pos.y;
 
-    // We measure the volume fraction
+    // Let the bar fill the remainder up to region_right_x
+    float bar_width_pixels = (region_right_x * scale_x) - bar_x;
+    if (bar_width_pixels < 0.0f) bar_width_pixels = 0.0f;
+    float bar_height_pixels = scale_y * 0.6f; // arbitrary
+
+    // Volume fraction
     float volume_fraction = (float)audioManager.GetVolume() / 128.0f;
+    volume_fraction = std::clamp(volume_fraction, 0.0f, 1.0f);
 
-    ImVec2 bar_pos = ImVec2(bar_x, bar_y);
-    ImVec2 bar_end = ImVec2(bar_x + bar_width, bar_y + bar_height);
+    ImVec2 bar_pos  = ImVec2(bar_x, bar_y);
+    ImVec2 bar_end  = ImVec2(bar_x + bar_width_pixels, bar_y + bar_height_pixels);
 
+    // Black background
     draw_list->AddRectFilled(bar_pos, bar_end, COLOR_BLACK);
-    draw_list->AddRectFilled(bar_pos,
-                             ImVec2(bar_x + bar_width * volume_fraction,
-                                    bar_y + bar_height),
-                             COLOR_GREEN);
+    // Green fill
+    float fill_x = bar_x + bar_width_pixels * volume_fraction;
+    draw_list->AddRectFilled(bar_pos, ImVec2(fill_x, bar_end.y), COLOR_GREEN);
+    // Outline
     draw_list->AddRect(bar_pos, bar_end, COLOR_GREEN);
 
-    // Make it clickable/dragable
+    // Make it draggable
     ImGui::SetCursorPos(bar_pos);
-    ImGui::InvisibleButton("volume_bar", ImVec2(bar_width, bar_height));
+    ImGui::InvisibleButton("volume_bar", ImVec2(bar_width_pixels, bar_height_pixels));
     if (ImGui::IsItemActive()) {
         float mouse_x = ImGui::GetIO().MousePos.x;
-        float new_frac = (mouse_x - bar_pos.x) / bar_width;
+        float new_frac = (mouse_x - bar_pos.x) / bar_width_pixels;
         new_frac = std::clamp(new_frac, 0.0f, 1.0f);
-        int new_vol = (int)(new_frac * 128.0f);
-        audioManager.SetVolume(new_vol);
+        int new_volume = (int)(new_frac * 128.0f);
+        audioManager.SetVolume(new_volume);
     }
 }
