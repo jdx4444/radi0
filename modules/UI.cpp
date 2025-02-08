@@ -55,7 +55,7 @@ void UI::Render(ImDrawList* draw_list,
                           line_start_x, line_end_x,
                           scale_x, scale_y,
                           /* x_offset = */ -1.0f,
-                          /* y_offset = */ -7.0f); // higher above the line
+                          /* y_offset = */ -8.0f); // higher above the line
     sprite.Draw(draw_list, COLOR_GREEN);
 
     // (Optional) black bars on each end, if you want to hide the sprite
@@ -68,7 +68,7 @@ void UI::Cleanup()
 }
 
 //--------------------------------------------------------------------------------------
-// Single solid progress bar (green line) with a subtle grey behind it
+// Single solid progress bar (green line)
 //--------------------------------------------------------------------------------------
 void UI::DrawProgressLine(ImDrawList* draw_list,
                           BluetoothAudioManager& audioManager,
@@ -79,7 +79,7 @@ void UI::DrawProgressLine(ImDrawList* draw_list,
     ImVec2 p2 = ToPixels(line_end_x,   line_y, scale_x, scale_y);
 
     // Slight grey behind it
-    draw_list->AddLine(p1, p2, IM_COL32(100, 100, 100, 255), 2.0f);
+    //draw_list->AddLine(p1, p2, IM_COL32(100, 100, 100, 255), 2.0f);
     // Green on top
     draw_list->AddLine(p1, p2, COLOR_GREEN, 4.0f);
 }
@@ -92,7 +92,7 @@ void UI::DrawMaskBars(ImDrawList* draw_list,
                       float line_start_x, float line_end_x, float line_y)
 {
     float mask_width  = 1.0f;
-    float mask_height = 0.5f;
+    float mask_height = 1.0f;
 
     ImVec2 left_top  = ToPixels(line_start_x - mask_width,
                                 line_y - mask_height, scale_x, scale_y);
