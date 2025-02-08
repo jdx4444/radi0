@@ -64,7 +64,7 @@ void Sprite::Draw(ImDrawList* draw_list, ImU32 color)
     };
 
     // CHANGED: Use a smaller pixel size so the car is not huge
-    float pixel_size = 0.03f * size.x; // Now smaller than the previous 0.08f
+    float pixel_size = 0.08f * size.x; // Now smaller than the previous 0.08f
 
     for (int y = 0; y < SPRITE_HEIGHT; ++y) {
         for (int x = 0; x < SPRITE_WIDTH; ++x) {
