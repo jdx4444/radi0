@@ -15,10 +15,14 @@
 #include "modules/Sprite.h"
 #include "modules/UI.h"
 
-const float VIRTUAL_WIDTH = 20.0f;
-const float VIRTUAL_HEIGHT = 10.0f;
+// -----------------------------------------------------------------------------
+// CHANGED: Define an 8:3 virtual coordinate system so it matches 1280×480 exactly
+// -----------------------------------------------------------------------------
+static const float VIRTUAL_WIDTH = 80.0f;
+static const float VIRTUAL_HEIGHT = 30.0f;
 
-int main(int, char**) {
+int main(int, char**)
+{
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0) {
         printf("Error: %s\n", SDL_GetError());
         return -1;
@@ -54,18 +58,33 @@ int main(int, char**) {
         printf("SDL_GetCurrentDisplayMode failed: %s\n", SDL_GetError());
         return -1;
     }
-    int window_width = DM.w;
-    int window_height = DM.h;
+    int window_width = DM.w;   // e.g. 1280
+    int window_height = DM.h;  // e.g. 480
 
-    float scale_x = (float)window_width / VIRTUAL_WIDTH;
-    float scale_y = (float)window_height / VIRTUAL_HEIGHT;
+    // -----------------------------------------------------------------------------
+    // CHANGED: Compute scale_x, scale_y to match our 80×30 virtual space exactly
+    // -----------------------------------------------------------------------------
+    float scale_x = (float)window_width / VIRTUAL_WIDTH;   // e.g. 1280 ÷ 80 = 16
+    float scale_y = (float)window_height / VIRTUAL_HEIGHT; // e.g.  480 ÷ 30 = 16
 
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
-    SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_BORDERLESS | SDL_WINDOW_FULLSCREEN_DESKTOP);
-    SDL_Window* window = SDL_CreateWindow("Retro Car Head Unit", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, window_width, window_height, window_flags);
+    // We create a borderless fullscreen window at the detected resolution
+    SDL_WindowFlags window_flags = (SDL_WindowFlags)(
+        SDL_WINDOW_OPENGL |
+        SDL_WINDOW_ALLOW_HIGHDPI |
+        SDL_WINDOW_BORDERLESS |
+        SDL_WINDOW_FULLSCREEN_DESKTOP
+    );
+
+    SDL_Window* window = SDL_CreateWindow("Retro Car Head Unit",
+                                          SDL_WINDOWPOS_UNDEFINED,
+                                          SDL_WINDOWPOS_UNDEFINED,
+                                          window_width, window_height,
+                                          window_flags);
+
     if (!window) {
         printf("Error: SDL_CreateWindow(): %s\n", SDL_GetError());
         SDL_Quit();
@@ -82,16 +101,19 @@ int main(int, char**) {
     SDL_GL_MakeCurrent(window, gl_context);
     SDL_GL_SetSwapInterval(1);
 
+    // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.Fonts->AddFontDefault();
 
+    // Style
     ImGui::StyleColorsDark();
     ImGuiStyle& style = ImGui::GetStyle();
     style.WindowRounding = 0.0f;
     style.WindowPadding = ImVec2(0, 0);
 
+    // CHANGED: Green text on black background for that retro look
     ImVec4* colors = style.Colors;
     colors[ImGuiCol_WindowBg]      = ImVec4(0, 0, 0, 1);
     colors[ImGuiCol_Text]          = ImVec4(0, 1, 0, 1);
@@ -101,26 +123,30 @@ int main(int, char**) {
 
     ImVec4 clear_color = ImVec4(0, 0, 0, 1);
 
+    // Initialize ImGui backends
     ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
+    // Initialize your BluetoothAudioManager
     BluetoothAudioManager audioManager;
     if (!audioManager.Initialize()) {
         printf("Failed to initialize BluetoothAudioManager.\n");
         return -1;
     }
+    // Dummy playlist entries
     audioManager.AddToPlaylist("Track1.mp3", 180.0f);
     audioManager.AddToPlaylist("Track2.mp3", 200.0f);
     audioManager.Play();
 
+    // Initialize your Sprite
     Sprite sprite;
     sprite.Initialize(scale_x, scale_y);
 
+    // Initialize UI
     UI ui;
     ui.Initialize();
 
     bool done = false;
-
     while (!done) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
@@ -130,6 +156,7 @@ int main(int, char**) {
             if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE)
                 done = true;
 
+            // Keyboard controls
             if (event.type == SDL_KEYDOWN) {
                 switch (event.key.keysym.sym) {
                     case SDLK_SPACE:
@@ -162,10 +189,14 @@ int main(int, char**) {
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
+        // Update audio
         audioManager.Update(io.DeltaTime);
 
-        ImGuiWindowFlags wf = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
-                              ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar |
+        // Draw our single fullscreen ImGui window (no borders, no resize)
+        ImGuiWindowFlags wf = ImGuiWindowFlags_NoResize |
+                              ImGuiWindowFlags_NoMove |
+                              ImGuiWindowFlags_NoTitleBar |
+                              ImGuiWindowFlags_NoScrollbar |
                               ImGuiWindowFlags_NoScrollWithMouse;
 
         ImGui::SetNextWindowPos(ImVec2(0, 0));
@@ -174,10 +205,12 @@ int main(int, char**) {
         ImGui::Begin("Car Head Unit", nullptr, wf);
 
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
+        // Render your UI
         ui.Render(draw_list, audioManager, sprite, scale_x, scale_y);
 
         ImGui::End();
 
+        // Render ImGui
         ImGui::Render();
         glViewport(0, 0, window_width, window_height);
         glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
@@ -186,6 +219,7 @@ int main(int, char**) {
         SDL_GL_SwapWindow(window);
     }
 
+    // Cleanup
     ui.Cleanup();
     audioManager.Shutdown();
 
