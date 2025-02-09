@@ -21,7 +21,8 @@ static const float VIRTUAL_HEIGHT = 30.0f;
 
 int main(int, char**)
 {
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0)
+    {
         printf("Error: %s\n", SDL_GetError());
         return -1;
     }
@@ -52,12 +53,13 @@ int main(int, char**)
 
     // Get current screen resolution
     SDL_DisplayMode DM;
-    if (SDL_GetCurrentDisplayMode(0, &DM) != 0) {
+    if (SDL_GetCurrentDisplayMode(0, &DM) != 0)
+    {
         printf("SDL_GetCurrentDisplayMode failed: %s\n", SDL_GetError());
         return -1;
     }
-    int window_width = DM.w;   // e.g. 1280
-    int window_height = DM.h;  // e.g. 480
+    int window_width = DM.w;   // e.g., 1280
+    int window_height = DM.h;  // e.g., 480
 
     // Compute scale factors so that our 80×30 virtual space fits exactly
     float scale_x = static_cast<float>(window_width) / VIRTUAL_WIDTH;
@@ -79,14 +81,16 @@ int main(int, char**)
                                           SDL_WINDOWPOS_UNDEFINED,
                                           window_width, window_height,
                                           window_flags);
-    if (!window) {
+    if (!window)
+    {
         printf("Error: SDL_CreateWindow(): %s\n", SDL_GetError());
         SDL_Quit();
         return -1;
     }
 
     SDL_GLContext gl_context = SDL_GL_CreateContext(window);
-    if (!gl_context) {
+    if (!gl_context)
+    {
         printf("Error: SDL_GL_CreateContext(): %s\n", SDL_GetError());
         SDL_DestroyWindow(window);
         SDL_Quit();
@@ -120,34 +124,43 @@ int main(int, char**)
 
     // Initialize BluetoothAudioManager (DBus enabled)
     BluetoothAudioManager audioManager;
-    if (!audioManager.Initialize()) {
+    if (!audioManager.Initialize())
+    {
         printf("Failed to initialize BluetoothAudioManager.\n");
         return -1;
     }
-    // (When a phone is connected via Bluetooth and starts playing, BlueZ will supply metadata.)
-    // For testing you might still add a dummy playlist entry.
+    // For testing, add dummy playlist entries (if DBus metadata isn’t updating)
     audioManager.AddToPlaylist("Track1.mp3", 10.0f);
     audioManager.AddToPlaylist("Track2.mp3", 200.0f);
     audioManager.Play();
 
-    // Initialize Sprite and UI
+    // Initialize Sprite and UI modules
     Sprite sprite;
     sprite.Initialize(scale_x, scale_y);
     UI ui;
     ui.Initialize();
 
     bool done = false;
-    while (!done) {
+    while (!done)
+    {
         SDL_Event event;
-        while (SDL_PollEvent(&event)) {
+        while (SDL_PollEvent(&event))
+        {
             ImGui_ImplSDL2_ProcessEvent(&event);
             if (event.type == SDL_QUIT)
                 done = true;
             if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE)
                 done = true;
-            // Keyboard controls (for testing manual playback control)
-            if (event.type == SDL_KEYDOWN) {
-                switch (event.key.keysym.sym) {
+            // Keyboard controls
+            if (event.type == SDL_KEYDOWN)
+            {
+                // Map the "e" key to exit the program
+                if (event.key.keysym.sym == SDLK_e)
+                {
+                    done = true;
+                }
+                switch (event.key.keysym.sym)
+                {
                     case SDLK_SPACE:
                         if (audioManager.GetState() == PlaybackState::Playing)
                             audioManager.Pause();
@@ -175,7 +188,7 @@ int main(int, char**)
         }
 
         ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplSDL2_NewFrame();
+        ImGui_ImplSDL2_NewFrame();  // Use this call without window argument if that's what your version requires.
         ImGui::NewFrame();
 
         // Update audio (DBus signals will update metadata)
