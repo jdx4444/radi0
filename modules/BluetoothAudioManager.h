@@ -55,6 +55,7 @@ private:
     PlaybackState state;
     int volume;
     float elapsed_time;
+    float time_since_last_dbus_position;
 
 #ifndef NO_DBUS
     struct DBusConnection* dbus_conn;
