@@ -2,20 +2,9 @@
 
 # Compiler and Flags
 CXX = g++
-CXXFLAGS_COMMON = -std=c++17 \
-                  -I. -Iimgui -Ibackends -Imodules \
-                  -DGL_SILENCE_DEPRECATION
-
-CXXFLAGS_MAC = $(CXXFLAGS_COMMON) \
-               -stdlib=libc++ \
-               -I/opt/homebrew/include/SDL2 \
-               -I/opt/homebrew/Cellar/dbus/1.14.10/include/dbus-1.0 \
-               -I/opt/homebrew/Cellar/dbus/1.14.10/lib/dbus-1.0/include
-
-CXXFLAGS_PI = $(CXXFLAGS_COMMON) \
-              -I/usr/include/SDL2 \
-              -I/usr/include/dbus-1.0
-
+CXXFLAGS_COMMON = -std=c++17 -I. -Iimgui -Ibackends -Imodules -DGL_SILENCE_DEPRECATION
+CXXFLAGS_MAC = $(CXXFLAGS_COMMON) -stdlib=libc++ -I/opt/homebrew/include/SDL2 -I/opt/homebrew/Cellar/dbus/1.14.10/include/dbus-1.0 -I/opt/homebrew/Cellar/dbus/1.14.10/lib/dbus-1.0/include
+CXXFLAGS_PI = $(CXXFLAGS_COMMON) -I/usr/include/SDL2 -I/usr/include/dbus-1.0
 LDFLAGS_MAC = -L/opt/homebrew/lib -lSDL2 -ldbus-1 -framework OpenGL
 LDFLAGS_PI = -L/usr/lib -lSDL2 -ldbus-1 -lGL
 
@@ -34,20 +23,30 @@ SOURCES = main.cpp \
 # Output Binaries
 OUTPUT_MAC = radioBT_mac
 OUTPUT_PI = radioBT_pi
+OUTPUT_DBUS_MAC = radioBT_mac_dbus
+OUTPUT_DBUS_PI = radioBT_pi_dbus
 
-# Default Target
+# Default Target (macOS mock version)
 all: $(OUTPUT_MAC)
 
-# Build for macOS
+# Build for macOS (mock version: with -DNO_DBUS)
 $(OUTPUT_MAC): $(SOURCES)
 	$(CXX) $(CXXFLAGS_MAC) -DNO_DBUS -v $(SOURCES) $(LDFLAGS_MAC) -o $(OUTPUT_MAC)
 
-# Build for Raspberry Pi
+# Build for macOS with DBus enabled
+build_dbus_mac: $(SOURCES)
+	$(CXX) $(CXXFLAGS_MAC) -v $(SOURCES) $(LDFLAGS_MAC) -o $(OUTPUT_DBUS_MAC)
+
+# Build for Raspberry Pi (mock version)
 build_pi: $(SOURCES)
 	$(CXX) $(CXXFLAGS_PI) -DNO_DBUS -v $(SOURCES) $(LDFLAGS_PI) -o $(OUTPUT_PI)
 
+# Build for Raspberry Pi with DBus enabled
+build_dbus_pi: $(SOURCES)
+	$(CXX) $(CXXFLAGS_PI) -v $(SOURCES) $(LDFLAGS_PI) -o $(OUTPUT_DBUS_PI)
+
 # Clean Build Artifacts
 clean:
-	rm -f $(OUTPUT_MAC) $(OUTPUT_PI)
+	rm -f $(OUTPUT_MAC) $(OUTPUT_PI) $(OUTPUT_DBUS_MAC) $(OUTPUT_DBUS_PI)
 
-.PHONY: all build_pi clean
+.PHONY: all build_pi build_dbus_mac build_dbus_pi clean

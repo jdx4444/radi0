@@ -15,9 +15,7 @@
 #include "modules/Sprite.h"
 #include "modules/UI.h"
 
-// -----------------------------------------------------------------------------
-// CHANGED: Define an 8:3 virtual coordinate system so it matches 1280×480 exactly
-// -----------------------------------------------------------------------------
+// Define an 8:3 virtual coordinate system (80×30)
 static const float VIRTUAL_WIDTH = 80.0f;
 static const float VIRTUAL_HEIGHT = 30.0f;
 
@@ -52,7 +50,7 @@ int main(int, char**)
     SDL_SetHint(SDL_HINT_IME_SHOW_UI, "1");
 #endif
 
-    // Get the current screen resolution dynamically
+    // Get current screen resolution
     SDL_DisplayMode DM;
     if (SDL_GetCurrentDisplayMode(0, &DM) != 0) {
         printf("SDL_GetCurrentDisplayMode failed: %s\n", SDL_GetError());
@@ -61,30 +59,26 @@ int main(int, char**)
     int window_width = DM.w;   // e.g. 1280
     int window_height = DM.h;  // e.g. 480
 
-    // -----------------------------------------------------------------------------
-    // CHANGED: Compute scale_x, scale_y to match our 80×30 virtual space exactly
-    // -----------------------------------------------------------------------------
-    float scale_x = (float)window_width / VIRTUAL_WIDTH;   // e.g. 1280 ÷ 80 = 16
-    float scale_y = (float)window_height / VIRTUAL_HEIGHT; // e.g.  480 ÷ 30 = 16
+    // Compute scale factors so that our 80×30 virtual space fits exactly
+    float scale_x = static_cast<float>(window_width) / VIRTUAL_WIDTH;
+    float scale_y = static_cast<float>(window_height) / VIRTUAL_HEIGHT;
 
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
-    // We create a borderless fullscreen window at the detected resolution
+    // Create a borderless fullscreen window at the detected resolution
     SDL_WindowFlags window_flags = (SDL_WindowFlags)(
         SDL_WINDOW_OPENGL |
         SDL_WINDOW_ALLOW_HIGHDPI |
         SDL_WINDOW_BORDERLESS |
         SDL_WINDOW_FULLSCREEN_DESKTOP
     );
-
     SDL_Window* window = SDL_CreateWindow("Retro Car Head Unit",
                                           SDL_WINDOWPOS_UNDEFINED,
                                           SDL_WINDOWPOS_UNDEFINED,
                                           window_width, window_height,
                                           window_flags);
-
     if (!window) {
         printf("Error: SDL_CreateWindow(): %s\n", SDL_GetError());
         SDL_Quit();
@@ -107,19 +101,16 @@ int main(int, char**)
     ImGuiIO& io = ImGui::GetIO();
     io.Fonts->AddFontDefault();
 
-    // Style
+    // Retro style: green text on black background
     ImGui::StyleColorsDark();
     ImGuiStyle& style = ImGui::GetStyle();
     style.WindowRounding = 0.0f;
     style.WindowPadding = ImVec2(0, 0);
-
-    // CHANGED: Green text on black background for that retro look
-    ImVec4* colors = style.Colors;
-    colors[ImGuiCol_WindowBg]      = ImVec4(0, 0, 0, 1);
-    colors[ImGuiCol_Text]          = ImVec4(0, 1, 0, 1);
-    colors[ImGuiCol_Border]        = ImVec4(0, 1, 0, 1);
-    colors[ImGuiCol_FrameBg]       = ImVec4(0, 0, 0, 1);
-    colors[ImGuiCol_PlotHistogram] = ImVec4(0, 1, 0, 1);
+    style.Colors[ImGuiCol_WindowBg]      = ImVec4(0, 0, 0, 1);
+    style.Colors[ImGuiCol_Text]          = ImVec4(0, 1, 0, 1);
+    style.Colors[ImGuiCol_Border]        = ImVec4(0, 1, 0, 1);
+    style.Colors[ImGuiCol_FrameBg]       = ImVec4(0, 0, 0, 1);
+    style.Colors[ImGuiCol_PlotHistogram] = ImVec4(0, 1, 0, 1);
 
     ImVec4 clear_color = ImVec4(0, 0, 0, 1);
 
@@ -127,22 +118,21 @@ int main(int, char**)
     ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-    // Initialize your BluetoothAudioManager
+    // Initialize BluetoothAudioManager (DBus enabled)
     BluetoothAudioManager audioManager;
     if (!audioManager.Initialize()) {
         printf("Failed to initialize BluetoothAudioManager.\n");
         return -1;
     }
-    // Dummy playlist entries
+    // (When a phone is connected via Bluetooth and starts playing, BlueZ will supply metadata.)
+    // For testing you might still add a dummy playlist entry.
     audioManager.AddToPlaylist("Track1.mp3", 10.0f);
     audioManager.AddToPlaylist("Track2.mp3", 200.0f);
     audioManager.Play();
 
-    // Initialize your Sprite
+    // Initialize Sprite and UI
     Sprite sprite;
     sprite.Initialize(scale_x, scale_y);
-
-    // Initialize UI
     UI ui;
     ui.Initialize();
 
@@ -155,8 +145,7 @@ int main(int, char**)
                 done = true;
             if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE)
                 done = true;
-
-            // Keyboard controls
+            // Keyboard controls (for testing manual playback control)
             if (event.type == SDL_KEYDOWN) {
                 switch (event.key.keysym.sym) {
                     case SDLK_SPACE:
@@ -189,28 +178,23 @@ int main(int, char**)
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
-        // Update audio
+        // Update audio (DBus signals will update metadata)
         audioManager.Update(io.DeltaTime);
 
-        // Draw our single fullscreen ImGui window (no borders, no resize)
+        // Draw one fullscreen ImGui window
         ImGuiWindowFlags wf = ImGuiWindowFlags_NoResize |
                               ImGuiWindowFlags_NoMove |
                               ImGuiWindowFlags_NoTitleBar |
                               ImGuiWindowFlags_NoScrollbar |
                               ImGuiWindowFlags_NoScrollWithMouse;
-
         ImGui::SetNextWindowPos(ImVec2(0, 0));
-        ImGui::SetNextWindowSize(ImVec2((float)window_width, (float)window_height));
-
+        ImGui::SetNextWindowSize(ImVec2(static_cast<float>(window_width), static_cast<float>(window_height)));
         ImGui::Begin("Car Head Unit", nullptr, wf);
-
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
-        // Render your UI
         ui.Render(draw_list, audioManager, sprite, scale_x, scale_y);
-
         ImGui::End();
 
-        // Render ImGui
+        // Render ImGui frame
         ImGui::Render();
         glViewport(0, 0, window_width, window_height);
         glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);

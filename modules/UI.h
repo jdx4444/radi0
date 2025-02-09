@@ -6,37 +6,30 @@
 #include "Sprite.h"
 #include "Utilities.h"
 
-//------------------------------------------------------------------------------
-// LayoutConfig: A single place to store all virtual-coordinate layout values.
-// Adjust these values to reposition elements in your 80×30 virtual space.
-//------------------------------------------------------------------------------
+// Layout configuration structure (virtual coordinates in an 80×30 space)
 struct LayoutConfig {
-    // --- Volume Bar ---
+    // Volume Bar
     float volumeLabelX    = 32.5f;
     float volumeLabelY    = 5.0f;
-    float volumeBarOffset = 2.0f;   // How far right from the label the bar starts
-    float volumeBarWidth  = 15.0f;  // Virtual width of the volume bar
-    float volumeBarHeight = 1.0f;   // Virtual height of the volume bar
-
-    // --- Track Info Region ---
+    float volumeBarOffset = 2.0f;
+    float volumeBarWidth  = 15.0f;
+    float volumeBarHeight = 1.0f;
+    // Track Info Region
     float trackRegionLeftX  = 15.0f;
     float trackRegionRightX = 65.0f;
     float artistY           = 11.0f;
     float trackY            = 13.0f;
-
-    // --- Progress Bar ---
+    // Progress Bar
     float progressBarStartX = 15.0f;
     float progressBarEndX   = 65.0f;
     float progressBarY      = 22.0f;
-    float timeTextYOffset   = 1.0f; // Vertical offset below the progress bar
-
-    // --- Sprite Offsets ---
+    float timeTextYOffset   = 1.0f;
+    // Sprite Offsets
     float spriteXOffset = -1.0f;
     float spriteYOffset = -8.0f;
-
-    // --- Mask Bars ---
-    float maskBarWidth  = 5.0f;  // Virtual width of the mask (left/right)
-    float maskBarHeight = 3.0f;  // Virtual height of the mask (for drawing)
+    // Mask Bars
+    float maskBarWidth  = 5.0f;
+    float maskBarHeight = 3.0f;
 };
 
 class UI {
@@ -51,11 +44,10 @@ public:
                 float scale_x, float scale_y);
     void Cleanup();
 
-    // Expose layout config so it can be adjusted (if needed) from elsewhere
+    // Expose layout config for adjustments
     LayoutConfig& GetLayoutConfig() { return layout; }
 
 private:
-    // Helper functions that rely on layout configuration values
     void DrawVolumeBar(ImDrawList* draw_list,
                        BluetoothAudioManager& audioManager,
                        float scale_x, float scale_y);
