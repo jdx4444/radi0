@@ -189,6 +189,7 @@ void BluetoothAudioManager::ProcessPendingDBusMessages() {
 // -----------------------------------------------------------------------------
 // Updated HandlePropertiesChanged() to handle both "Metadata" and "Track" keys,
 // and to accept Duration and Position as either 32-bit (milliseconds) or 64-bit integers.
+// Additionally, we now update Position only when the state is Playing.
 // -----------------------------------------------------------------------------
 void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
     DBusMessageIter iter;
@@ -287,24 +288,27 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
         }
         // Handle "Position"
         else if (strcmp(key, "Position") == 0) {
-            int type = dbus_message_iter_get_arg_type(&entry_iter);
-            if (type == DBUS_TYPE_VARIANT) {
-                DBusMessageIter variant_iter;
-                dbus_message_iter_recurse(&entry_iter, &variant_iter);
-                int pos_type = dbus_message_iter_get_arg_type(&variant_iter);
-                if (pos_type == DBUS_TYPE_INT64) {
-                    dbus_int64_t pos_val;
-                    dbus_message_iter_get_basic(&variant_iter, &pos_val);
-                    if (pos_val < 1000000)
+            // Only update playback_position if the state is Playing.
+            if (state == PlaybackState::Playing) {
+                int type = dbus_message_iter_get_arg_type(&entry_iter);
+                if (type == DBUS_TYPE_VARIANT) {
+                    DBusMessageIter variant_iter;
+                    dbus_message_iter_recurse(&entry_iter, &variant_iter);
+                    int pos_type = dbus_message_iter_get_arg_type(&variant_iter);
+                    if (pos_type == DBUS_TYPE_INT64) {
+                        dbus_int64_t pos_val;
+                        dbus_message_iter_get_basic(&variant_iter, &pos_val);
+                        if (pos_val < 1000000)
+                            playback_position = static_cast<float>(pos_val) / 1000.0f;
+                        else
+                            playback_position = static_cast<float>(pos_val) / 1000000.0f;
+                        std::cout << "Updated Playback Position: " << playback_position << "s\n";
+                    } else if (pos_type == DBUS_TYPE_UINT32) {
+                        uint32_t pos_val;
+                        dbus_message_iter_get_basic(&variant_iter, &pos_val);
                         playback_position = static_cast<float>(pos_val) / 1000.0f;
-                    else
-                        playback_position = static_cast<float>(pos_val) / 1000000.0f;
-                    std::cout << "Updated Playback Position: " << playback_position << "s\n";
-                } else if (pos_type == DBUS_TYPE_UINT32) {
-                    uint32_t pos_val;
-                    dbus_message_iter_get_basic(&variant_iter, &pos_val);
-                    playback_position = static_cast<float>(pos_val) / 1000.0f;
-                    std::cout << "Updated Playback Position: " << playback_position << "s\n";
+                        std::cout << "Updated Playback Position: " << playback_position << "s\n";
+                    }
                 }
             }
         }
@@ -505,9 +509,9 @@ void BluetoothAudioManager::Update(float delta_time) {
             NextTrack();
         }
 #else
-        // First, process DBus messages to update any new values.
+        // First, process any incoming DBus signals.
         ProcessPendingDBusMessages();
-        // Then simulate continuous advancement of playback_position.
+        // Then, simulate continuous advancement of playback_position.
         const Track& current_track = playlist[current_track_index];
         playback_position += delta_time;
         if (playback_position >= current_track.duration) {
