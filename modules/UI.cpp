@@ -18,25 +18,43 @@ void UI::Render(ImDrawList* draw_list,
                 Sprite& sprite,
                 float scale_x, float scale_y)
 {
-    // 1) Volume bar near the top
+    // 1) Draw the volume bar near the top
     DrawVolumeBar(draw_list, audioManager, scale_x, scale_y);
 
-    // 2) Artist / track info in the middle region
+    // 2) Draw the artist and track info in the middle region
     DrawArtistAndTrackInfo(draw_list, audioManager, scale_x, scale_y);
 
-    // 3) Progress bar near the bottom center, with time below it
+    // 3) Draw the progress line and time remaining below it
     DrawProgressLine(draw_list, audioManager, scale_x, scale_y);
     DrawTimeRemaining(draw_list, audioManager, scale_x, scale_y);
 
-    // 4) Car sprite above the progress bar
+    // 4) Update and draw the car sprite above the progress bar
+
+    // For our sprite pattern (19 columns drawn at a pixel size of 0.08 * size.x
+    // with size.x = 2*scale_x), the virtual width is approximately:
+    constexpr float spriteVirtualWidth = 19 * 0.16f; // ≈ 3.04 virtual units
+
+    // We want the sprite to be completely concealed at the start and end:
+    // At progress = 0, we want the sprite’s right edge to be exactly at progressBarStartX.
+    // Since the sprite’s anchor is its left edge, set:
+    //    effectiveStartX = progressBarStartX - spriteVirtualWidth
+    //
+    // At progress = 1, we want the sprite’s left edge to be exactly at progressBarEndX.
+    // So we set:
+    //    effectiveEndX = progressBarEndX
+    //
+    // (Note: If your maskBarWidth is smaller than spriteVirtualWidth, a small sliver may remain visible.)
+    float effectiveStartX = layout.progressBarStartX - spriteVirtualWidth;
+    float effectiveEndX   = layout.progressBarEndX;
+
     sprite.UpdatePosition(audioManager.GetPlaybackFraction(),
-                          layout.progressBarStartX, layout.progressBarEndX,
+                          effectiveStartX, effectiveEndX,
                           scale_x, scale_y,
                           layout.spriteXOffset,
                           layout.spriteYOffset);
     sprite.Draw(draw_list, COLOR_GREEN);
 
-    // Optional: black mask bars on each end
+    // Draw the mask bars on top (they are drawn last so they cover the sprite edges)
     DrawMaskBars(draw_list, scale_x, scale_y);
 }
 
@@ -51,7 +69,7 @@ void UI::DrawVolumeBar(ImDrawList* draw_list,
                        BluetoothAudioManager& audioManager,
                        float scale_x, float scale_y)
 {
-    // Draw the "Vol:" label
+    // Draw the "Vol:" label.
     float label_virtual_x = layout.volumeLabelX;
     float volume_virtual_y  = layout.volumeLabelY;
     ImVec2 label_pos = ToPixels(label_virtual_x, volume_virtual_y, scale_x, scale_y);
@@ -59,22 +77,22 @@ void UI::DrawVolumeBar(ImDrawList* draw_list,
     ImGui::TextUnformatted("Vol:");
     ImVec2 text_size = ImGui::CalcTextSize("Vol:");
 
-    // Compute the volume bar’s start and end in virtual coordinates
+    // Compute the volume bar’s start and end in virtual coordinates.
     float bar_virtual_start = label_virtual_x + layout.volumeBarOffset;
     float bar_virtual_end   = bar_virtual_start + layout.volumeBarWidth;
 
-    // Convert to pixels
+    // Convert to pixels.
     float bar_x_start_px = bar_virtual_start * scale_x;
     float bar_x_end_px   = bar_virtual_end   * scale_x;
     float bar_y_px       = label_pos.y;
     float bar_height_px  = layout.volumeBarHeight * scale_y;
 
-    // Draw the empty bar (background)
+    // Draw the empty bar (background).
     ImVec2 bar_pos(bar_x_start_px, bar_y_px);
     ImVec2 bar_end(bar_x_end_px, bar_y_px + bar_height_px);
     draw_list->AddRectFilled(bar_pos, bar_end, COLOR_BLACK);
 
-    // Calculate filled fraction based on volume (0-128)
+    // Calculate filled fraction based on volume (0-128).
     float volume_fraction = static_cast<float>(audioManager.GetVolume()) / 128.0f;
     volume_fraction = std::clamp(volume_fraction, 0.0f, 1.0f);
 
@@ -82,7 +100,7 @@ void UI::DrawVolumeBar(ImDrawList* draw_list,
     draw_list->AddRectFilled(bar_pos, ImVec2(fill_x, bar_end.y), COLOR_GREEN);
     draw_list->AddRect(bar_pos, bar_end, COLOR_GREEN);
 
-    // Make the bar interactive
+    // Make the bar interactive.
     ImGui::SetCursorPos(bar_pos);
     ImGui::InvisibleButton("volume_bar", ImVec2(bar_x_end_px - bar_x_start_px, bar_height_px));
     if (ImGui::IsItemActive()) {
@@ -192,20 +210,24 @@ void UI::DrawTimeRemaining(ImDrawList* draw_list,
 }
 
 //------------------------------------------------------------------------------
-// DrawMaskBars: Optionally draw black rectangles at each end of the progress line.
+// DrawMaskBars: Draws black rectangles at each end of the progress line.
 //------------------------------------------------------------------------------
 void UI::DrawMaskBars(ImDrawList* draw_list,
                       float scale_x, float scale_y)
 {
-    float mask_width  = 1.0f;
-    float mask_height = 1.0f;
+    float mask_width  = layout.maskBarWidth;
+    float mask_height = layout.maskBarHeight;
 
-    ImVec2 left_top = ToPixels(layout.progressBarStartX - mask_width, layout.progressBarY - mask_height, scale_x, scale_y);
-    ImVec2 left_bot = ToPixels(layout.progressBarStartX, layout.progressBarY + mask_height, scale_x, scale_y);
+    ImVec2 left_top  = ToPixels(layout.progressBarStartX - mask_width,
+                                layout.progressBarY - mask_height, scale_x, scale_y);
+    ImVec2 left_bot  = ToPixels(layout.progressBarStartX,
+                                layout.progressBarY + mask_height, scale_x, scale_y);
 
-    ImVec2 right_top = ToPixels(layout.progressBarEndX, layout.progressBarY - mask_height, scale_x, scale_y);
-    ImVec2 right_bot = ToPixels(layout.progressBarEndX + mask_width, layout.progressBarY + mask_height, scale_x, scale_y);
+    ImVec2 right_top = ToPixels(layout.progressBarEndX,
+                                layout.progressBarY - mask_height, scale_x, scale_y);
+    ImVec2 right_bot = ToPixels(layout.progressBarEndX + mask_width,
+                                layout.progressBarY + mask_height, scale_x, scale_y);
 
-    draw_list->AddRectFilled(left_top,  left_bot,  COLOR_BLACK);
+    draw_list->AddRectFilled(left_top, left_bot, COLOR_BLACK);
     draw_list->AddRectFilled(right_top, right_bot, COLOR_BLACK);
 }

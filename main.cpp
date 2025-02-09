@@ -134,7 +134,7 @@ int main(int, char**)
         return -1;
     }
     // Dummy playlist entries
-    audioManager.AddToPlaylist("Track1.mp3", 180.0f);
+    audioManager.AddToPlaylist("Track1.mp3", 10.0f);
     audioManager.AddToPlaylist("Track2.mp3", 200.0f);
     audioManager.Play();
 

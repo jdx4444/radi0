@@ -12,9 +12,9 @@
 //------------------------------------------------------------------------------
 struct LayoutConfig {
     // --- Volume Bar ---
-    float volumeLabelX    = 25.0f;
+    float volumeLabelX    = 32.5f;
     float volumeLabelY    = 5.0f;
-    float volumeBarOffset = 7.0f;   // How far right from the label the bar starts
+    float volumeBarOffset = 2.0f;   // How far right from the label the bar starts
     float volumeBarWidth  = 15.0f;  // Virtual width of the volume bar
     float volumeBarHeight = 1.0f;   // Virtual height of the volume bar
 
@@ -33,6 +33,10 @@ struct LayoutConfig {
     // --- Sprite Offsets ---
     float spriteXOffset = -1.0f;
     float spriteYOffset = -8.0f;
+
+    // --- Mask Bars ---
+    float maskBarWidth  = 5.0f;  // Virtual width of the mask (left/right)
+    float maskBarHeight = 3.0f;  // Virtual height of the mask (for drawing)
 };
 
 class UI {
@@ -51,7 +55,7 @@ public:
     LayoutConfig& GetLayoutConfig() { return layout; }
 
 private:
-    // Helper functions that now rely on layout configuration values
+    // Helper functions that rely on layout configuration values
     void DrawVolumeBar(ImDrawList* draw_list,
                        BluetoothAudioManager& audioManager,
                        float scale_x, float scale_y);
