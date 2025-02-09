@@ -64,6 +64,9 @@ private:
     std::string current_track_artist;
     float playback_position; // In seconds
 
+    // Add this flag to indicate whether to ignore incoming DBus position updates.
+    bool ignore_position_updates;
+
     bool SetupDBus();
     bool GetManagedObjects();
     void ListenForSignals();

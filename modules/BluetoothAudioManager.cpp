@@ -40,7 +40,7 @@ BluetoothAudioManager::BluetoothAudioManager()
       current_track_title(""),
       current_track_artist(""),
       playback_position(0.0f),
-      time_since_last_dbus_position(0.0f)
+      ignore_position_updates(false)
 #endif
 {
 }
@@ -190,7 +190,7 @@ void BluetoothAudioManager::ProcessPendingDBusMessages() {
 // -----------------------------------------------------------------------------
 // Updated HandlePropertiesChanged() to handle both "Metadata" and "Track" keys,
 // and to accept Duration and Position as either 32-bit (milliseconds) or 64-bit integers.
-// Also, we update Position only when the state is Playing, resetting the timer.
+// Also, we update Position only when the state is Playing, and we reset the simulation timer.
 // -----------------------------------------------------------------------------
 void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
     DBusMessageIter iter;
@@ -267,7 +267,6 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                                 if (basic_type == DBUS_TYPE_INT64) {
                                     dbus_int64_t length_val;
                                     dbus_message_iter_get_basic(&inner_variant, &length_val);
-                                    // If the value is small, assume milliseconds; otherwise, microseconds.
                                     if (length_val < 1000000)
                                         playlist[current_track_index].duration = static_cast<float>(length_val) / 1000.0f;
                                     else
@@ -276,7 +275,6 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                                 } else if (basic_type == DBUS_TYPE_UINT32) {
                                     uint32_t length_val;
                                     dbus_message_iter_get_basic(&inner_variant, &length_val);
-                                    // Assume the value is in milliseconds.
                                     playlist[current_track_index].duration = static_cast<float>(length_val) / 1000.0f;
                                     std::cout << "Updated Track Duration: " << playlist[current_track_index].duration << "s\n";
                                 }
@@ -287,9 +285,9 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                 }
             }
         }
-        // Handle "Position" – update only if playing.
+        // Handle "Position" – update only if playing and not ignoring updates.
         else if (strcmp(key, "Position") == 0) {
-            if (state == PlaybackState::Playing) {
+            if (state == PlaybackState::Playing && !ignore_position_updates) {
                 int type = dbus_message_iter_get_arg_type(&entry_iter);
                 if (type == DBUS_TYPE_VARIANT) {
                     DBusMessageIter variant_iter;
@@ -313,6 +311,9 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                         std::cout << "Updated Playback Position: " << playback_position << "s\n";
                     }
                 }
+            } else {
+                // Optionally, you can log that the position update is ignored.
+                // std::cout << "Ignored Position update because playback is paused.\n";
             }
         }
         dbus_message_iter_next(&props_iter);
@@ -360,6 +361,8 @@ void BluetoothAudioManager::Play() {
     }
     dbus_message_unref(reply);
     state = PlaybackState::Playing;
+    // When playback resumes, re-enable DBus position updates.
+    ignore_position_updates = false;
     elapsed_time = 0.0f;
     playback_position = 0.0f;
     std::cout << "Playing (DBus): " << playlist[current_track_index].filepath << "\n";
@@ -394,6 +397,8 @@ void BluetoothAudioManager::Pause() {
     }
     dbus_message_unref(reply);
     state = PlaybackState::Paused;
+    // When paused, ignore any further DBus position updates.
+    ignore_position_updates = true;
     std::cout << "Music paused (DBus).\n";
 #endif
 }
@@ -438,6 +443,8 @@ void BluetoothAudioManager::NextTrack() {
     dbus_message_unref(reply);
     current_track_index = (current_track_index + 1) % static_cast<int>(playlist.size());
     state = PlaybackState::Playing;
+    // Reset simulation variables on track change.
+    ignore_position_updates = false;
     elapsed_time = 0.0f;
     playback_position = 0.0f;
     std::cout << "Next track (DBus): " << playlist[current_track_index].filepath << "\n";
@@ -472,6 +479,7 @@ void BluetoothAudioManager::PreviousTrack() {
     dbus_message_unref(reply);
     current_track_index = (current_track_index - 1 + static_cast<int>(playlist.size())) % static_cast<int>(playlist.size());
     state = PlaybackState::Playing;
+    ignore_position_updates = false;
     elapsed_time = 0.0f;
     playback_position = 0.0f;
     std::cout << "Previous track (DBus): " << playlist[current_track_index].filepath << "\n";
@@ -512,18 +520,20 @@ void BluetoothAudioManager::Update(float delta_time) {
             NextTrack();
         }
 #else
-        // Process any incoming DBus signals.
+        // Process incoming DBus messages (which may update playback_position).
         ProcessPendingDBusMessages();
-
         const Track& current_track = playlist[current_track_index];
-        // Increase the timer tracking time since the last DBus Position update.
-        time_since_last_dbus_position += delta_time;
-        // If no DBus update has been received in the last 0.1 seconds, simulate advancement.
-        if (time_since_last_dbus_position >= 0.1f) {
-            playback_position += delta_time;
-            if (playback_position >= current_track.duration) {
-                playback_position = 0.0f;
-                NextTrack();
+        // Increase the simulation timer only when playing.
+        // (This timer helps us simulate continuous playback if no new DBus position update arrives.)
+        if (!ignore_position_updates) {
+            // If no DBus update has arrived in the last 0.1 seconds, simulate advancement.
+            time_since_last_dbus_position += delta_time;
+            if (time_since_last_dbus_position >= 0.1f) {
+                playback_position += delta_time;
+                if (playback_position >= current_track.duration) {
+                    playback_position = 0.0f;
+                    NextTrack();
+                }
             }
         }
 #endif
