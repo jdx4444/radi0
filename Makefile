@@ -4,8 +4,8 @@
 CXX = g++
 CXXFLAGS_COMMON = -std=c++17 -I. -Iimgui -Ibackends -Imodules -DGL_SILENCE_DEPRECATION
 CXXFLAGS_MAC = $(CXXFLAGS_COMMON) -stdlib=libc++ -I/opt/homebrew/include/SDL2 -I/opt/homebrew/Cellar/dbus/1.14.10/include/dbus-1.0 -I/opt/homebrew/Cellar/dbus/1.14.10/lib/dbus-1.0/include
-# Updated for Raspberry Pi: add -I/usr/lib/dbus-1.0/include
-CXXFLAGS_PI = $(CXXFLAGS_COMMON) -I/usr/include/SDL2 -I/usr/include/dbus-1.0 -I/usr/lib/dbus-1.0/include
+# Update for Raspberry Pi: add the correct DBus include directory for ARM64
+CXXFLAGS_PI = $(CXXFLAGS_COMMON) -I/usr/include/SDL2 -I/usr/include/dbus-1.0 -I/usr/lib/aarch64-linux-gnu/dbus-1.0/include
 LDFLAGS_MAC = -L/opt/homebrew/lib -lSDL2 -ldbus-1 -framework OpenGL
 LDFLAGS_PI = -L/usr/lib -lSDL2 -ldbus-1 -lGL
 
