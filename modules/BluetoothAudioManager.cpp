@@ -200,7 +200,6 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
     const char* iface_name = nullptr;
     dbus_message_iter_get_basic(&iter, &iface_name);
     dbus_message_iter_next(&iter);
-
     // Second argument: changed properties (an array)
     if (dbus_message_iter_get_arg_type(&iter) != DBUS_TYPE_ARRAY) {
         std::cerr << "PropertiesChanged: expected an array of properties.\n";
@@ -214,7 +213,6 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
         const char* key = nullptr;
         dbus_message_iter_get_basic(&entry_iter, &key);
         dbus_message_iter_next(&entry_iter);
-
         // Check for "Metadata" or "Track"
         if (strcmp(key, "Metadata") == 0 || strcmp(key, "Track") == 0) {
             int variant_type = dbus_message_iter_get_arg_type(&entry_iter);
@@ -267,7 +265,7 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                                 if (basic_type == DBUS_TYPE_INT64) {
                                     dbus_int64_t length_val;
                                     dbus_message_iter_get_basic(&inner_variant, &length_val);
-                                    // If the value is very small, assume it's in milliseconds.
+                                    // If the value is small, assume milliseconds; otherwise, microseconds.
                                     if (length_val < 1000000)
                                         playlist[current_track_index].duration = static_cast<float>(length_val) / 1000.0f;
                                     else
@@ -499,16 +497,25 @@ void BluetoothAudioManager::ClearPlaylist() {
 
 void BluetoothAudioManager::Update(float delta_time) {
     if (state == PlaybackState::Playing && !playlist.empty()) {
+#ifdef NO_DBUS
         elapsed_time += delta_time;
         const Track& current_track = playlist[current_track_index];
         if (elapsed_time >= current_track.duration) {
             elapsed_time = 0.0f;
             NextTrack();
         }
-    }
-#ifndef NO_DBUS
-    ProcessPendingDBusMessages();
+#else
+        // First, process DBus messages to update any new values.
+        ProcessPendingDBusMessages();
+        // Then simulate continuous advancement of playback_position.
+        const Track& current_track = playlist[current_track_index];
+        playback_position += delta_time;
+        if (playback_position >= current_track.duration) {
+            playback_position = 0.0f;
+            NextTrack();
+        }
 #endif
+    }
 }
 
 float BluetoothAudioManager::GetPlaybackFraction() const {
