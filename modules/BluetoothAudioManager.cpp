@@ -187,7 +187,8 @@ void BluetoothAudioManager::ProcessPendingDBusMessages() {
 #endif // NO_DBUS
 
 // -----------------------------------------------------------------------------
-// Updated HandlePropertiesChanged() to handle both "Metadata" and "Track" keys.
+// Updated HandlePropertiesChanged() to handle both "Metadata" and "Track" keys,
+// and to accept duration/position as either 32-bit or 64-bit integers.
 // -----------------------------------------------------------------------------
 void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
     DBusMessageIter iter;
@@ -207,16 +208,13 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
     }
     DBusMessageIter props_iter;
     dbus_message_iter_recurse(&iter, &props_iter);
-
     while (dbus_message_iter_get_arg_type(&props_iter) == DBUS_TYPE_DICT_ENTRY) {
         DBusMessageIter entry_iter;
         dbus_message_iter_recurse(&props_iter, &entry_iter);
-
         const char* key = nullptr;
         dbus_message_iter_get_basic(&entry_iter, &key);
         dbus_message_iter_next(&entry_iter);
-
-        // Check for either "Metadata" or "Track" key
+        // Check for "Metadata" or "Track"
         if (strcmp(key, "Metadata") == 0 || strcmp(key, "Track") == 0) {
             int variant_type = dbus_message_iter_get_arg_type(&entry_iter);
             if (variant_type == DBUS_TYPE_VARIANT) {
@@ -228,18 +226,16 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                     while (dbus_message_iter_get_arg_type(&array_iter) == DBUS_TYPE_DICT_ENTRY) {
                         DBusMessageIter dict_entry_iter;
                         dbus_message_iter_recurse(&array_iter, &dict_entry_iter);
-
                         const char* meta_key = nullptr;
                         dbus_message_iter_get_basic(&dict_entry_iter, &meta_key);
                         dbus_message_iter_next(&dict_entry_iter);
-
-                        // The value is expected to be in a variant.
+                        // Expect the value in a variant.
                         if (dbus_message_iter_get_arg_type(&dict_entry_iter) == DBUS_TYPE_VARIANT) {
                             DBusMessageIter inner_variant;
                             dbus_message_iter_recurse(&dict_entry_iter, &inner_variant);
                             int basic_type = dbus_message_iter_get_arg_type(&inner_variant);
 
-                            // Handle Title: check both "xesam:title" and "Title"
+                            // Handle Title: "xesam:title" or "Title"
                             if ((strcmp(meta_key, "xesam:title") == 0 || strcmp(meta_key, "Title") == 0) &&
                                 basic_type == DBUS_TYPE_STRING) {
                                 const char* title = nullptr;
@@ -247,7 +243,7 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                                 current_track_title = title ? title : "";
                                 std::cout << "Updated Title: " << current_track_title << "\n";
                             }
-                            // Handle Artist: check both "xesam:artist" and "Artist"
+                            // Handle Artist: "xesam:artist" or "Artist"
                             else if ((strcmp(meta_key, "xesam:artist") == 0 || strcmp(meta_key, "Artist") == 0)) {
                                 if (basic_type == DBUS_TYPE_ARRAY) {
                                     DBusMessageIter artist_array;
@@ -265,14 +261,23 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                                     std::cout << "Updated Artist: " << current_track_artist << "\n";
                                 }
                             }
-                            // Handle Duration: check both "xesam:length" and "Duration"
-                            else if ((strcmp(meta_key, "xesam:length") == 0 || strcmp(meta_key, "Duration") == 0)
-                                     && basic_type == DBUS_TYPE_INT64) {
-                                dbus_int64_t length_us;
-                                dbus_message_iter_get_basic(&inner_variant, &length_us);
-                                if (!playlist.empty()) {
-                                    playlist[current_track_index].duration = static_cast<float>(length_us) / 1000000.0f;
-                                    std::cout << "Updated Track Duration: " << playlist[current_track_index].duration << "s\n";
+                            // Handle Duration: "xesam:length" or "Duration"
+                            else if ((strcmp(meta_key, "xesam:length") == 0 || strcmp(meta_key, "Duration") == 0)) {
+                                // Accept either 64-bit or 32-bit integers.
+                                if (basic_type == DBUS_TYPE_INT64) {
+                                    dbus_int64_t length_us;
+                                    dbus_message_iter_get_basic(&inner_variant, &length_us);
+                                    if (!playlist.empty()) {
+                                        playlist[current_track_index].duration = static_cast<float>(length_us) / 1000000.0f;
+                                        std::cout << "Updated Track Duration: " << playlist[current_track_index].duration << "s\n";
+                                    }
+                                } else if (basic_type == DBUS_TYPE_UINT32) {
+                                    uint32_t length_us;
+                                    dbus_message_iter_get_basic(&inner_variant, &length_us);
+                                    if (!playlist.empty()) {
+                                        playlist[current_track_index].duration = static_cast<float>(length_us) / 1000000.0f;
+                                        std::cout << "Updated Track Duration: " << playlist[current_track_index].duration << "s\n";
+                                    }
                                 }
                             }
                         }
@@ -280,13 +285,21 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                     }
                 }
             }
-        } else if (strcmp(key, "Position") == 0) {
+        }
+        // Handle "Position"
+        else if (strcmp(key, "Position") == 0) {
             int type = dbus_message_iter_get_arg_type(&entry_iter);
             if (type == DBUS_TYPE_VARIANT) {
                 DBusMessageIter variant_iter;
                 dbus_message_iter_recurse(&entry_iter, &variant_iter);
-                if (dbus_message_iter_get_arg_type(&variant_iter) == DBUS_TYPE_INT64) {
+                int pos_type = dbus_message_iter_get_arg_type(&variant_iter);
+                if (pos_type == DBUS_TYPE_INT64) {
                     dbus_int64_t pos_us;
+                    dbus_message_iter_get_basic(&variant_iter, &pos_us);
+                    playback_position = static_cast<float>(pos_us) / 1000000.0f;
+                    std::cout << "Updated Playback Position: " << playback_position << "s\n";
+                } else if (pos_type == DBUS_TYPE_UINT32) {
+                    uint32_t pos_us;
                     dbus_message_iter_get_basic(&variant_iter, &pos_us);
                     playback_position = static_cast<float>(pos_us) / 1000000.0f;
                     std::cout << "Updated Playback Position: " << playback_position << "s\n";
