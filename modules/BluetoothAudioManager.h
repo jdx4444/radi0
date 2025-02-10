@@ -47,8 +47,6 @@ public:
     std::string GetCurrentTrackTitle() const { return current_track_title; }
     std::string GetCurrentTrackArtist() const { return current_track_artist; }
     float GetCurrentPlaybackPosition() const { return playback_position; }
-    bool ignore_position_updates;
-    float time_since_last_dbus_position;
 #endif // NO_DBUS
 
 private:
@@ -57,7 +55,7 @@ private:
     PlaybackState state;
     int volume;
     float elapsed_time;
-    float time_since_last_dbus_position;
+    float time_since_last_dbus_position; // Only declared once here
 
 #ifndef NO_DBUS
     struct DBusConnection* dbus_conn;
