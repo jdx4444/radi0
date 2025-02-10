@@ -55,16 +55,16 @@ private:
     PlaybackState state;
     int volume;
     float elapsed_time;
-    float time_since_last_dbus_position; // Only declared once here
+    float time_since_last_dbus_position; // Simulation timer for position updates
 
 #ifndef NO_DBUS
     struct DBusConnection* dbus_conn;
-    std::string current_player_path; // Store MediaPlayer1 path
+    std::string current_player_path; // Stores MediaPlayer1 path
     std::string current_track_title;
     std::string current_track_artist;
     float playback_position; // In seconds
 
-    // Add this flag to indicate whether to ignore incoming DBus position updates.
+    // Flag to ignore incoming DBus position updates when paused.
     bool ignore_position_updates;
 
     bool SetupDBus();
