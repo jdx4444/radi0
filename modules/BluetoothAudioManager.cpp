@@ -40,6 +40,7 @@ BluetoothAudioManager::BluetoothAudioManager()
       current_track_title(""),
       current_track_artist(""),
       playback_position(0.0f),
+      time_since_last_dbus_position(0.0f),
       ignore_position_updates(false)
 #endif
 {
@@ -175,8 +176,9 @@ void BluetoothAudioManager::ProcessPendingDBusMessages() {
                 if (strcmp(interface, "org.freedesktop.DBus.ObjectManager") == 0 &&
                     strcmp(member, "InterfacesAdded") == 0) {
                     std::cout << "Signal received: InterfacesAdded\n";
-                } else if (strcmp(interface, "org.freedesktop.DBus.Properties") == 0 &&
-                           strcmp(member, "PropertiesChanged") == 0) {
+                }
+                else if (strcmp(interface, "org.freedesktop.DBus.Properties") == 0 &&
+                         strcmp(member, "PropertiesChanged") == 0) {
                     std::cout << "Signal received: PropertiesChanged\n";
                     HandlePropertiesChanged(msg);
                 }
@@ -188,9 +190,9 @@ void BluetoothAudioManager::ProcessPendingDBusMessages() {
 #endif // NO_DBUS
 
 // -----------------------------------------------------------------------------
-// Updated HandlePropertiesChanged() to handle both "Metadata" and "Track" keys,
-// and to accept Duration and Position as either 32-bit (milliseconds) or 64-bit integers.
-// Also, we update Position only when the state is Playing, and we reset the simulation timer.
+// Updated HandlePropertiesChanged() to handle "Metadata", "Track", and "Status" keys,
+// accept Duration and Position as either 32-bit (milliseconds) or 64-bit integers,
+// and update Position only when playing and not ignoring updates.
 // -----------------------------------------------------------------------------
 void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
     DBusMessageIter iter;
@@ -215,7 +217,8 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
         const char* key = nullptr;
         dbus_message_iter_get_basic(&entry_iter, &key);
         dbus_message_iter_next(&entry_iter);
-        // Check for "Metadata" or "Track"
+
+        // Process "Metadata" or "Track"
         if (strcmp(key, "Metadata") == 0 || strcmp(key, "Track") == 0) {
             int variant_type = dbus_message_iter_get_arg_type(&entry_iter);
             if (variant_type == DBUS_TYPE_VARIANT) {
@@ -263,7 +266,6 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                             }
                             // Handle Duration: "xesam:length" or "Duration"
                             else if ((strcmp(meta_key, "xesam:length") == 0 || strcmp(meta_key, "Duration") == 0)) {
-                                // Check for both 64-bit and 32-bit types.
                                 if (basic_type == DBUS_TYPE_INT64) {
                                     dbus_int64_t length_val;
                                     dbus_message_iter_get_basic(&inner_variant, &length_val);
@@ -285,7 +287,31 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                 }
             }
         }
-        // Handle "Position" – update only if playing and not ignoring updates.
+        // Process "Status" property from DBus (e.g., "playing" or "paused")
+        else if (strcmp(key, "Status") == 0) {
+            int type = dbus_message_iter_get_arg_type(&entry_iter);
+            if (type == DBUS_TYPE_VARIANT) {
+                DBusMessageIter status_variant;
+                dbus_message_iter_recurse(&entry_iter, &status_variant);
+                if (dbus_message_iter_get_arg_type(&status_variant) == DBUS_TYPE_STRING) {
+                    const char* status_str = nullptr;
+                    dbus_message_iter_get_basic(&status_variant, &status_str);
+                    if (status_str) {
+                        std::string status(status_str);
+                        if (status == "paused") {
+                            state = PlaybackState::Paused;
+                            ignore_position_updates = true;
+                            std::cout << "Status update: paused\n";
+                        } else if (status == "playing") {
+                            state = PlaybackState::Playing;
+                            ignore_position_updates = false;
+                            std::cout << "Status update: playing\n";
+                        }
+                    }
+                }
+            }
+        }
+        // Process "Position" property—update only if playing and not ignoring updates.
         else if (strcmp(key, "Position") == 0) {
             if (state == PlaybackState::Playing && !ignore_position_updates) {
                 int type = dbus_message_iter_get_arg_type(&entry_iter);
@@ -300,7 +326,7 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                             playback_position = static_cast<float>(pos_val) / 1000.0f;
                         else
                             playback_position = static_cast<float>(pos_val) / 1000000.0f;
-                        // Reset our simulation timer on DBus update.
+                        // Reset simulation timer on DBus update.
                         time_since_last_dbus_position = 0.0f;
                         std::cout << "Updated Playback Position: " << playback_position << "s\n";
                     } else if (pos_type == DBUS_TYPE_UINT32) {
@@ -311,9 +337,6 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                         std::cout << "Updated Playback Position: " << playback_position << "s\n";
                     }
                 }
-            } else {
-                // Optionally, you can log that the position update is ignored.
-                // std::cout << "Ignored Position update because playback is paused.\n";
             }
         }
         dbus_message_iter_next(&props_iter);
@@ -322,7 +345,7 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
 
 #ifndef NO_DBUS
 // End of DBus-related functions
-#endif // NO_DBUS
+#endif
 
 // --- Unified Playback Methods ---
 
@@ -361,7 +384,6 @@ void BluetoothAudioManager::Play() {
     }
     dbus_message_unref(reply);
     state = PlaybackState::Playing;
-    // When playback resumes, re-enable DBus position updates.
     ignore_position_updates = false;
     elapsed_time = 0.0f;
     playback_position = 0.0f;
@@ -397,7 +419,6 @@ void BluetoothAudioManager::Pause() {
     }
     dbus_message_unref(reply);
     state = PlaybackState::Paused;
-    // When paused, ignore any further DBus position updates.
     ignore_position_updates = true;
     std::cout << "Music paused (DBus).\n";
 #endif
@@ -443,7 +464,6 @@ void BluetoothAudioManager::NextTrack() {
     dbus_message_unref(reply);
     current_track_index = (current_track_index + 1) % static_cast<int>(playlist.size());
     state = PlaybackState::Playing;
-    // Reset simulation variables on track change.
     ignore_position_updates = false;
     elapsed_time = 0.0f;
     playback_position = 0.0f;
@@ -457,6 +477,13 @@ void BluetoothAudioManager::PreviousTrack() {
     current_track_index = (current_track_index - 1 + static_cast<int>(playlist.size())) % static_cast<int>(playlist.size());
     Play();
 #else
+    // If current playback position is greater than a threshold (e.g. 5 seconds),
+    // reset the current track's position to the beginning.
+    if (playback_position > 5.0f) {
+        playback_position = 0.0f;
+        std::cout << "Reset current track position to start.\n";
+        return;
+    }
     if (current_player_path.empty()) {
         std::cerr << "No active MediaPlayer1 found.\n";
         return;
@@ -520,13 +547,11 @@ void BluetoothAudioManager::Update(float delta_time) {
             NextTrack();
         }
 #else
-        // Process incoming DBus messages (which may update playback_position).
+        // Process incoming DBus messages first.
         ProcessPendingDBusMessages();
         const Track& current_track = playlist[current_track_index];
-        // Increase the simulation timer only when playing.
-        // (This timer helps us simulate continuous playback if no new DBus position update arrives.)
+        // Only simulate continuous advancement if we're not ignoring DBus position updates.
         if (!ignore_position_updates) {
-            // If no DBus update has arrived in the last 0.1 seconds, simulate advancement.
             time_since_last_dbus_position += delta_time;
             if (time_since_last_dbus_position >= 0.1f) {
                 playback_position += delta_time;
