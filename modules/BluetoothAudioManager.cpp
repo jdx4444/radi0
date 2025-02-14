@@ -191,9 +191,6 @@ void BluetoothAudioManager::ProcessPendingDBusMessages() {
 
 // -----------------------------------------------------------------------------
 // HandlePropertiesChanged() processes "Metadata"/"Track", "Status", "Volume", and "Position".
-// Duration and Position can be 32-bit (milliseconds) or 64-bit integers.
-// For the "Position" key, we update only if playing and we reset our simulation timer
-// only when the new DBus-reported position differs significantly from our current value.
 // -----------------------------------------------------------------------------
 void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
     DBusMessageIter iter;
@@ -304,7 +301,6 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                         } else if (status == "playing") {
                             if (state != PlaybackState::Playing) {
                                 state = PlaybackState::Playing;
-                                // Only reset the simulation timer if the position actually updates.
                                 std::cout << "Status update: playing\n";
                             }
                         }
@@ -326,7 +322,7 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                 }
             }
         }
-        // Process "Position" signals – update only if playing.
+        // Process "Position" signals – always log and adjust if difference > 0.05s.
         else if (strcmp(key, "Position") == 0) {
             if (state == PlaybackState::Playing) {
                 int type = dbus_message_iter_get_arg_type(&entry_iter);
@@ -345,13 +341,17 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                         dbus_message_iter_get_basic(&variant_iter, &pos_val);
                         new_position = static_cast<float>(pos_val) / 1000.0f;
                     }
-                    // Only update if the new position differs by more than a threshold (e.g., 0.05s)
-                    if (std::abs(new_position - playback_position) > 0.05f) {
+                    
+                    float diff = std::abs(new_position - playback_position);
+                    std::cout << "[DBus Position Update] New position: " << new_position
+                              << " | Current playback_position: " << playback_position
+                              << " | Difference: " << diff << "\n";
+                    
+                    if (diff > 0.05f) {
                         playback_position = new_position;
-                        time_since_last_dbus_position = 0.0f;
-                        std::cout << "Updated Playback Position: " << playback_position << "s\n";
+                        std::cout << "[DBus Position Update] Snapped playback_position to: " << playback_position << "\n";
                     }
-                    // Otherwise, let the simulation in Update() continue advancing the position.
+                    time_since_last_dbus_position = 0.0f;
                 }
             }
         }
@@ -399,7 +399,6 @@ void BluetoothAudioManager::Play() {
         return;
     }
     dbus_message_unref(reply);
-    // When starting fresh (not resuming), reset playback_position.
     if (state != PlaybackState::Paused) {
         playback_position = 0.0f;
     }
@@ -450,7 +449,6 @@ void BluetoothAudioManager::Resume() {
         std::cout << "Music resumed (mock).\n";
     }
 #else
-    // For DBus, call the Play method to resume without resetting playback_position.
     if (current_player_path.empty()) {
         std::cerr << "No active MediaPlayer1 found.\n";
         return;
@@ -473,9 +471,8 @@ void BluetoothAudioManager::Resume() {
     dbus_message_unref(reply);
     state = PlaybackState::Playing;
     ignore_position_updates = false;
-    // Do not reset playback_position here!
     time_since_last_dbus_position = 0.0f;
-    std::cout << "Resumed (DBus): " << playlist[current_track_index].filepath << "\n";
+    std::cout << "[Resume] Playback resumed. Current playback_position: " << playback_position << "\n";
 #endif
 }
 
@@ -520,7 +517,6 @@ void BluetoothAudioManager::PreviousTrack() {
     current_track_index = (current_track_index - 1 + static_cast<int>(playlist.size())) % static_cast<int>(playlist.size());
     Play();
 #else
-    // If current playback position is > 5 seconds, reset to start.
     if (playback_position > 5.0f) {
         playback_position = 0.0f;
         std::cout << "Reset current track position to start.\n";
@@ -559,7 +555,6 @@ void BluetoothAudioManager::SetVolume(int vol) {
     volume = std::clamp(vol, 0, 128);
     std::cout << "Volume set to: " << volume << "\n";
 #ifndef NO_DBUS
-    // Adjust the local output using ALSA's amixer.
     int percentage = (volume * 100) / 128;
     std::string command = "amixer set Master " + std::to_string(percentage) + "%";
     std::system(command.c_str());
@@ -597,17 +592,16 @@ void BluetoothAudioManager::Update(float delta_time) {
     }
 #else
     if (state == PlaybackState::Playing && !playlist.empty()) {
-        // Process incoming DBus messages (which update metadata, state, position, volume, etc.)
+        // Process incoming DBus messages.
         ProcessPendingDBusMessages();
-        // Simulate continuous playback advancement if no recent DBus "Position" update has arrived.
-        time_since_last_dbus_position += delta_time;
-        if (time_since_last_dbus_position >= 0.1f) {
-            playback_position += delta_time;
-            const Track& current_track = playlist[current_track_index];
-            if (playback_position >= current_track.duration) {
-                playback_position = 0.0f;
-                NextTrack();
-            }
+        // Always simulate advancing the playback position.
+        playback_position += delta_time;
+        std::cout << "[Update] Simulated playback_position: " << playback_position
+                  << " (delta_time: " << delta_time << ")\n";
+        const Track& current_track = playlist[current_track_index];
+        if (playback_position >= current_track.duration) {
+            playback_position = 0.0f;
+            NextTrack();
         }
     }
 #endif
@@ -642,9 +636,7 @@ std::string BluetoothAudioManager::GetTimeRemaining() const {
 }
 
 #ifndef NO_DBUS
-// -----------------------------------------------------------------------------
-// SendVolumeUpdate() adjusts the local output volume using ALSA's amixer.
-// -----------------------------------------------------------------------------
+// Adjusts the local output volume using ALSA's amixer.
 void BluetoothAudioManager::SendVolumeUpdate(int vol) {
     int percentage = (vol * 100) / 128;
     std::string command = "amixer set Master " + std::to_string(percentage) + "%";
