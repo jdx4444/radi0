@@ -335,7 +335,7 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                         dbus_int64_t pos_val;
                         dbus_message_iter_get_basic(&variant_iter, &pos_val);
                         new_position = (pos_val < 1000000) ? static_cast<float>(pos_val) / 1000.0f
-                                                          : static_cast<float>(pos_val) / 1000000.0f;
+                                                        : static_cast<float>(pos_val) / 1000000.0f;
                     } else if (pos_type == DBUS_TYPE_UINT32) {
                         uint32_t pos_val;
                         dbus_message_iter_get_basic(&variant_iter, &pos_val);
@@ -343,16 +343,26 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                     }
                     
                     float diff = new_position - playback_position;
+                    // Get current track duration.
+                    float track_duration = playlist[current_track_index].duration;
                     std::cout << "[DBus Position Update] New position: " << new_position
-                              << " | Current playback_position: " << playback_position
-                              << " | Difference: " << diff << "\n";
+                            << " | Current playback_position: " << playback_position
+                            << " | Difference: " << diff
+                            << " | Track duration: " << track_duration << "\n";
                     
-                    // Only snap if the DBus value is ahead of our current value by > 0.05s.
-                    // If the DBus update is a negative jump (new_position is behind), we ignore it.
-                    if (diff > 0.05f) {
+                    // If new_position is way beyond the track length, ignore the update.
+                    if (new_position > track_duration * 1.1f) {
+                        std::cout << "[DBus Position Update] New position (" << new_position 
+                                << ") exceeds expected track duration (" << track_duration 
+                                << "). Ignoring update.\n";
+                    }
+                    // Only snap if the DBus value is ahead of our simulated position by > 0.05s.
+                    else if (diff > 0.05f) {
                         playback_position = new_position;
                         std::cout << "[DBus Position Update] Snapped playback_position to: " << playback_position << "\n";
-                    } else if (diff < -0.05f) {
+                    }
+                    // If the new update is a negative jump of more than 0.05, ignore it.
+                    else if (diff < -0.05f) {
                         std::cout << "[DBus Position Update] Ignored negative jump (diff: " << diff << ")\n";
                     }
                     time_since_last_dbus_position = 0.0f;
