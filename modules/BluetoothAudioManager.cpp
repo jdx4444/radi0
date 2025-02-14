@@ -192,8 +192,9 @@ void BluetoothAudioManager::ProcessPendingDBusMessages() {
 // -----------------------------------------------------------------------------
 // HandlePropertiesChanged() processes "Metadata"/"Track", "Status", "Volume", and "Position".
 // Duration and Position can be 32-bit (milliseconds) or 64-bit integers.
-// For the "Position" key, we update only if playing and we reset our simulation timer
-// only when the new DBus-reported position differs significantly from our current value.
+// For "Position": if state==Playing, we update playback_position only if the new DBus value
+// is either (a) noticeably ahead (by at least 0.1s) or (b) if the current playback_position is near 0
+// or if the new value is much lower than our current value (indicating a large jump).
 // -----------------------------------------------------------------------------
 void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
     DBusMessageIter iter;
@@ -205,7 +206,7 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
     const char* iface_name = nullptr;
     dbus_message_iter_get_basic(&iter, &iface_name);
     dbus_message_iter_next(&iter);
-    // Next, process the array of changed properties.
+    // Next, get the array of changed properties.
     if (dbus_message_iter_get_arg_type(&iter) != DBUS_TYPE_ARRAY) {
         std::cerr << "PropertiesChanged: expected an array of properties.\n";
         return;
@@ -304,7 +305,7 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                         } else if (status == "playing") {
                             if (state != PlaybackState::Playing) {
                                 state = PlaybackState::Playing;
-                                // Only reset the simulation timer if the position actually updates.
+                                // (Do not reset playback_position here.)
                                 std::cout << "Status update: playing\n";
                             }
                         }
@@ -345,13 +346,16 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                         dbus_message_iter_get_basic(&variant_iter, &pos_val);
                         new_position = static_cast<float>(pos_val) / 1000.0f;
                     }
-                    // Only update if the new position differs by more than a threshold (e.g., 0.05s)
-                    if (std::abs(new_position - playback_position) > 0.05f) {
+                    // Update only if:
+                    // (a) we're near the start (playback_position < 0.1s), or
+                    // (b) new_position is significantly ahead (more than 0.1s difference), or
+                    // (c) if new_position is much lower (a large jump, > 1.0s difference).
+                    if (playback_position < 0.1f || new_position - playback_position > 0.1f ||
+                        (playback_position - new_position > 1.0f)) {
                         playback_position = new_position;
                         time_since_last_dbus_position = 0.0f;
                         std::cout << "Updated Playback Position: " << playback_position << "s\n";
                     }
-                    // Otherwise, let the simulation in Update() continue advancing the position.
                 }
             }
         }
@@ -399,7 +403,7 @@ void BluetoothAudioManager::Play() {
         return;
     }
     dbus_message_unref(reply);
-    // When starting fresh (not resuming), reset playback_position.
+    // If not resuming from pause, reset playback_position.
     if (state != PlaybackState::Paused) {
         playback_position = 0.0f;
     }
@@ -450,7 +454,7 @@ void BluetoothAudioManager::Resume() {
         std::cout << "Music resumed (mock).\n";
     }
 #else
-    // For DBus, call the Play method to resume without resetting playback_position.
+    // For DBus, call Play() to resume (without resetting playback_position).
     if (current_player_path.empty()) {
         std::cerr << "No active MediaPlayer1 found.\n";
         return;
@@ -473,7 +477,7 @@ void BluetoothAudioManager::Resume() {
     dbus_message_unref(reply);
     state = PlaybackState::Playing;
     ignore_position_updates = false;
-    // Do not reset playback_position here!
+    // Do not reset playback_position so the sprite continues from where it paused.
     time_since_last_dbus_position = 0.0f;
     std::cout << "Resumed (DBus): " << playlist[current_track_index].filepath << "\n";
 #endif
@@ -520,7 +524,7 @@ void BluetoothAudioManager::PreviousTrack() {
     current_track_index = (current_track_index - 1 + static_cast<int>(playlist.size())) % static_cast<int>(playlist.size());
     Play();
 #else
-    // If current playback position is > 5 seconds, reset to start.
+    // If current playback position is > 5 seconds, simply reset to start.
     if (playback_position > 5.0f) {
         playback_position = 0.0f;
         std::cout << "Reset current track position to start.\n";
@@ -597,7 +601,7 @@ void BluetoothAudioManager::Update(float delta_time) {
     }
 #else
     if (state == PlaybackState::Playing && !playlist.empty()) {
-        // Process incoming DBus messages (which update metadata, state, position, volume, etc.)
+        // Process incoming DBus messages (which may update metadata, state, position, volume, etc.)
         ProcessPendingDBusMessages();
         // Simulate continuous playback advancement if no recent DBus "Position" update has arrived.
         time_since_last_dbus_position += delta_time;
@@ -608,6 +612,7 @@ void BluetoothAudioManager::Update(float delta_time) {
                 playback_position = 0.0f;
                 NextTrack();
             }
+            time_since_last_dbus_position = 0.0f;
         }
     }
 #endif
