@@ -64,7 +64,7 @@ private:
     std::string current_track_artist;
     float playback_position; // In seconds
 
-    // When true (e.g. on pause), ignore incoming DBus position updates.
+    // When true (e.g. when paused), ignore incoming DBus position updates.
     bool ignore_position_updates;
 
     bool SetupDBus();
@@ -73,7 +73,7 @@ private:
     void ProcessPendingDBusMessages();
     void HandlePropertiesChanged(struct DBusMessage* msg);
 
-    // Helper: send a volume update command to the local audio output using ALSA.
+    // Helper: send a volume update command to the local output using ALSA.
     void SendVolumeUpdate(int vol);
 #endif // NO_DBUS
 };

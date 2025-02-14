@@ -136,7 +136,6 @@ bool BluetoothAudioManager::GetManagedObjects() {
                 const char* iface_name = nullptr;
                 dbus_message_iter_get_basic(&iface_entry, &iface_name);
                 dbus_message_iter_next(&iface_entry); // skip properties array
-                // Accept MediaPlayer1
                 if (iface_name && strcmp(iface_name, "org.bluez.MediaPlayer1") == 0) {
                     std::cout << "Found MediaPlayer1 at: " << object_path << "\n";
                     current_player_path = object_path;
@@ -192,8 +191,9 @@ void BluetoothAudioManager::ProcessPendingDBusMessages() {
 
 // -----------------------------------------------------------------------------
 // HandlePropertiesChanged() processes "Metadata"/"Track", "Status", "Volume", and "Position".
-// Duration and Position are accepted as either 32-bit (milliseconds) or 64-bit integers.
-// Updates the playback state and resets the simulation timer on DBus updates.
+// Duration and Position can be 32-bit (milliseconds) or 64-bit integers.
+// Also, we update the position only when playing and reset the simulation timer upon DBus updates.
+// Duplicate status updates are ignored.
 // -----------------------------------------------------------------------------
 void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
     DBusMessageIter iter;
@@ -296,12 +296,17 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                     if (status_str) {
                         std::string status(status_str);
                         if (status == "paused") {
-                            state = PlaybackState::Paused;
-                            std::cout << "Status update: paused\n";
+                            if (state != PlaybackState::Paused) {
+                                state = PlaybackState::Paused;
+                                ignore_position_updates = true;
+                                std::cout << "Status update: paused\n";
+                            }
                         } else if (status == "playing") {
-                            state = PlaybackState::Playing;
-                            time_since_last_dbus_position = 0.0f;
-                            std::cout << "Status update: playing\n";
+                            if (state != PlaybackState::Playing) {
+                                state = PlaybackState::Playing;
+                                time_since_last_dbus_position = 0.0f;
+                                std::cout << "Status update: playing\n";
+                            }
                         }
                     }
                 }
@@ -392,10 +397,13 @@ void BluetoothAudioManager::Play() {
         return;
     }
     dbus_message_unref(reply);
+    // In a "fresh start" (not resume), reset playback_position.
+    if (state != PlaybackState::Paused) {
+        playback_position = 0.0f;
+    }
     state = PlaybackState::Playing;
     ignore_position_updates = false;
     time_since_last_dbus_position = 0.0f;
-    playback_position = 0.0f;
     std::cout << "Playing (DBus): " << playlist[current_track_index].filepath << "\n";
 #endif
 }
@@ -440,8 +448,32 @@ void BluetoothAudioManager::Resume() {
         std::cout << "Music resumed (mock).\n";
     }
 #else
-    // For DBus, simply call Play() to resume.
-    Play();
+    // For DBus, call the Play method without resetting playback_position.
+    if (current_player_path.empty()) {
+        std::cerr << "No active MediaPlayer1 found.\n";
+        return;
+    }
+    DBusMessage* msg = dbus_message_new_method_call("org.bluez", current_player_path.c_str(),
+                                                    "org.bluez.MediaPlayer1", "Play");
+    if (!msg) {
+        std::cerr << "Failed to create D-Bus Play method call for resume.\n";
+        return;
+    }
+    DBusError err;
+    dbus_error_init(&err);
+    DBusMessage* reply = dbus_connection_send_with_reply_and_block(dbus_conn, msg, -1, &err);
+    dbus_message_unref(msg);
+    if (dbus_error_is_set(&err)) {
+        std::cerr << "D-Bus Play (resume) method call error: " << err.message << "\n";
+        dbus_error_free(&err);
+        return;
+    }
+    dbus_message_unref(reply);
+    state = PlaybackState::Playing;
+    ignore_position_updates = false;
+    // Do not reset playback_position here!
+    time_since_last_dbus_position = 0.0f;
+    std::cout << "Resumed (DBus): " << playlist[current_track_index].filepath << "\n";
 #endif
 }
 
@@ -486,6 +518,7 @@ void BluetoothAudioManager::PreviousTrack() {
     current_track_index = (current_track_index - 1 + static_cast<int>(playlist.size())) % static_cast<int>(playlist.size());
     Play();
 #else
+    // If current playback position is > 5 seconds, just reset to start.
     if (playback_position > 5.0f) {
         playback_position = 0.0f;
         std::cout << "Reset current track position to start.\n";
@@ -524,7 +557,7 @@ void BluetoothAudioManager::SetVolume(int vol) {
     volume = std::clamp(vol, 0, 128);
     std::cout << "Volume set to: " << volume << "\n";
 #ifndef NO_DBUS
-    // Instead of calling a DBus method (which fails), adjust the local output volume using ALSA.
+    // Adjust the local audio output using ALSA's amixer.
     int percentage = (volume * 100) / 128;
     std::string command = "amixer set Master " + std::to_string(percentage) + "%";
     std::system(command.c_str());
@@ -562,7 +595,7 @@ void BluetoothAudioManager::Update(float delta_time) {
     }
 #else
     if (state == PlaybackState::Playing && !playlist.empty()) {
-        // Process incoming DBus messages (which may update metadata, state, position, volume, etc.)
+        // Process incoming DBus messages (which update metadata, state, position, volume, etc.)
         ProcessPendingDBusMessages();
         // Simulate continuous playback advancement if no recent DBus "Position" update has arrived.
         time_since_last_dbus_position += delta_time;
@@ -609,7 +642,6 @@ std::string BluetoothAudioManager::GetTimeRemaining() const {
 #ifndef NO_DBUS
 // -----------------------------------------------------------------------------
 // SendVolumeUpdate() adjusts the local audio output volume using ALSA's amixer.
-// This decouples the phone's (read-only) volume from the output volume.
 // -----------------------------------------------------------------------------
 void BluetoothAudioManager::SendVolumeUpdate(int vol) {
     int percentage = (vol * 100) / 128;
