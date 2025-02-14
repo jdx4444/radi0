@@ -322,7 +322,7 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                 }
             }
         }
-        // Process "Position" signals – always log and adjust if difference > 0.05s.
+        // Process "Position" signals.
         else if (strcmp(key, "Position") == 0) {
             if (state == PlaybackState::Playing) {
                 int type = dbus_message_iter_get_arg_type(&entry_iter);
@@ -342,14 +342,18 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                         new_position = static_cast<float>(pos_val) / 1000.0f;
                     }
                     
-                    float diff = std::abs(new_position - playback_position);
+                    float diff = new_position - playback_position;
                     std::cout << "[DBus Position Update] New position: " << new_position
                               << " | Current playback_position: " << playback_position
                               << " | Difference: " << diff << "\n";
                     
+                    // Only snap if the DBus value is ahead of our current value by > 0.05s.
+                    // If the DBus update is a negative jump (new_position is behind), we ignore it.
                     if (diff > 0.05f) {
                         playback_position = new_position;
                         std::cout << "[DBus Position Update] Snapped playback_position to: " << playback_position << "\n";
+                    } else if (diff < -0.05f) {
+                        std::cout << "[DBus Position Update] Ignored negative jump (diff: " << diff << ")\n";
                     }
                     time_since_last_dbus_position = 0.0f;
                 }
@@ -517,6 +521,7 @@ void BluetoothAudioManager::PreviousTrack() {
     current_track_index = (current_track_index - 1 + static_cast<int>(playlist.size())) % static_cast<int>(playlist.size());
     Play();
 #else
+    // If current playback position is > 5 seconds, reset to start.
     if (playback_position > 5.0f) {
         playback_position = 0.0f;
         std::cout << "Reset current track position to start.\n";
