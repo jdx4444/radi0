@@ -64,7 +64,7 @@ private:
     std::string current_track_artist;
     float playback_position; // In seconds
 
-    // Add this flag to indicate whether to ignore incoming DBus position updates.
+    // Flag to indicate whether to ignore incoming DBus position updates (e.g. when paused)
     bool ignore_position_updates;
 
     bool SetupDBus();
@@ -72,6 +72,9 @@ private:
     void ListenForSignals();
     void ProcessPendingDBusMessages();
     void HandlePropertiesChanged(struct DBusMessage* msg);
+    
+    // New helper: send a volume update command to the phone.
+    void SendVolumeUpdate(int vol);
 #endif // NO_DBUS
 };
 
