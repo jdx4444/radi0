@@ -72,8 +72,8 @@ private:
     void ListenForSignals();
     void ProcessPendingDBusMessages();
     void HandlePropertiesChanged(struct DBusMessage* msg);
-
-    // Helper: send a volume update command to the local output using ALSA (amixer).
+    
+    // Helper: send a volume update command to the local output using ALSA.
     void SendVolumeUpdate(int vol);
 #endif // NO_DBUS
 };
