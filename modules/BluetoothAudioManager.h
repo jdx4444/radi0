@@ -59,12 +59,12 @@ private:
 
 #ifndef NO_DBUS
     struct DBusConnection* dbus_conn;
-    std::string current_player_path; // Store MediaPlayer1 path
+    std::string current_player_path; // Stores MediaPlayer1 path
     std::string current_track_title;
     std::string current_track_artist;
     float playback_position; // In seconds
 
-    // Flag to indicate whether to ignore incoming DBus position updates (e.g. when paused)
+    // When true (e.g. on pause), ignore incoming DBus position updates.
     bool ignore_position_updates;
 
     bool SetupDBus();
@@ -72,8 +72,8 @@ private:
     void ListenForSignals();
     void ProcessPendingDBusMessages();
     void HandlePropertiesChanged(struct DBusMessage* msg);
-    
-    // New helper: send a volume update command to the phone.
+
+    // Helper: send a volume update command to the local audio output using ALSA.
     void SendVolumeUpdate(int vol);
 #endif // NO_DBUS
 };
