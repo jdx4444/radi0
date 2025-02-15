@@ -10,10 +10,12 @@ enum class PlaybackState {
     Paused
 };
 
+#ifdef NO_DBUS
 struct Track {
     std::string filepath;
     float duration; // Duration in seconds
 };
+#endif
 
 class BluetoothAudioManager {
 public:
@@ -34,8 +36,10 @@ public:
 
     PlaybackState GetState() const;
 
+#ifdef NO_DBUS
     void AddToPlaylist(const std::string& filepath, float duration);
     void ClearPlaylist();
+#endif
 
     void Update(float delta_time);
 
@@ -43,39 +47,39 @@ public:
     std::string GetTimeRemaining() const;
 
 #ifndef NO_DBUS
-    std::string GetCurrentPlayerPath() const { return current_player_path; }
+    // Accessors for metadata in DBus mode
     std::string GetCurrentTrackTitle() const { return current_track_title; }
     std::string GetCurrentTrackArtist() const { return current_track_artist; }
+    float GetCurrentTrackDuration() const { return current_track_duration; }
     float GetCurrentPlaybackPosition() const { return playback_position; }
 #endif // NO_DBUS
 
 private:
+#ifdef NO_DBUS
     std::vector<Track> playlist;
     int current_track_index;
-    PlaybackState state;
-    int volume;
     float elapsed_time;
-    float time_since_last_dbus_position;
-
-#ifndef NO_DBUS
-    struct DBusConnection* dbus_conn;
-    std::string current_player_path; // Stores MediaPlayer1 path
+#else
+    // Variables solely updated via DBus
+    std::string current_player_path; // MediaPlayer1 path from DBus
     std::string current_track_title;
     std::string current_track_artist;
-    float playback_position; // In seconds
-
-    // When true (e.g. when paused), ignore incoming DBus position updates.
+    float current_track_duration; // Duration in seconds (from Metadata)
+    float playback_position;      // In seconds (from DBus "Position" updates)
     bool ignore_position_updates;
+    float time_since_last_dbus_position;
+    struct DBusConnection* dbus_conn;
 
     bool SetupDBus();
     bool GetManagedObjects();
     void ListenForSignals();
     void ProcessPendingDBusMessages();
     void HandlePropertiesChanged(struct DBusMessage* msg);
-    
-    // Helper: send a volume update command to the local output using ALSA.
     void SendVolumeUpdate(int vol);
 #endif // NO_DBUS
+
+    PlaybackState state;
+    int volume;
 };
 
 #endif // BLUETOOTH_AUDIO_MANAGER_H
