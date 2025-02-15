@@ -131,7 +131,6 @@ int main(int, char**)
     }
     
     // In mock mode, add dummy playlist entries.
-    // In DBus mode, these functions are not available.
 #ifdef NO_DBUS
     audioManager.AddToPlaylist("Track1.mp3", 10.0f);
     audioManager.AddToPlaylist("Track2.mp3", 200.0f);
@@ -168,17 +167,38 @@ int main(int, char**)
                 {
                     case SDLK_SPACE:
                         if (audioManager.GetState() == PlaybackState::Playing)
+                        {
                             audioManager.Pause();
+                        }
                         else if (audioManager.GetState() == PlaybackState::Paused)
+                        {
+                            // In DBus mode, call Resume() twice to force the sprite to update immediately.
+#ifdef NO_DBUS
                             audioManager.Resume();
+#else
+                            audioManager.Resume();
+                            audioManager.Resume();
+#endif
+                        }
                         else
+                        {
                             audioManager.Play();
+                        }
                         break;
                     case SDLK_RIGHT:
                         audioManager.NextTrack();
                         break;
                     case SDLK_LEFT:
+                        // In DBus mode, if the playback position is >5s, issue an extra call.
+#ifdef NO_DBUS
                         audioManager.PreviousTrack();
+#else
+                        if (audioManager.GetCurrentPlaybackPosition() > 5.0f)
+                        {
+                            audioManager.PreviousTrack();
+                        }
+                        audioManager.PreviousTrack();
+#endif
                         break;
                     case SDLK_UP:
                         audioManager.SetVolume(audioManager.GetVolume() + 8);
