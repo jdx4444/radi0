@@ -129,9 +129,14 @@ int main(int, char**)
         printf("Failed to initialize BluetoothAudioManager.\n");
         return -1;
     }
-    // For testing, add dummy playlist entries (if DBus metadata isn’t updating)
+    
+    // In mock mode, add dummy playlist entries.
+    // In DBus mode, these functions are not available.
+#ifdef NO_DBUS
     audioManager.AddToPlaylist("Track1.mp3", 10.0f);
     audioManager.AddToPlaylist("Track2.mp3", 200.0f);
+#endif
+
     audioManager.Play();
 
     // Initialize Sprite and UI modules
@@ -188,7 +193,7 @@ int main(int, char**)
         }
 
         ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplSDL2_NewFrame();  // Use this call without window argument if that's what your version requires.
+        ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
         // Update audio (DBus signals will update metadata)
