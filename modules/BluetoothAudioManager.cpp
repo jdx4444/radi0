@@ -40,7 +40,7 @@ BluetoothAudioManager::BluetoothAudioManager()
       playback_position(0.0f),
       ignore_position_updates(false),
       time_since_last_dbus_position(0.0f),
-      just_resumed(false), // Flag to force immediate update after resume
+      just_resumed(false), // NEW: Force update after resume
       dbus_conn(nullptr)
 {
     std::cout << "DEBUG: BluetoothAudioManager constructed.\n";
@@ -59,7 +59,7 @@ bool BluetoothAudioManager::Initialize() {
     if (!SetupDBus()) {
         std::cerr << "DEBUG: Warning: Failed to set up D-Bus connection. Cannot get metadata.\n";
     } else {
-        std::cout << "DEBUG: D-Bus connection established successfully.\n";
+        std::cout << "DEBUG: SetupDBus() successful.\n";
         if (!GetManagedObjects()) {
             std::cerr << "DEBUG: GetManagedObjects call failed or returned no data.\n";
         }
@@ -168,7 +168,7 @@ void BluetoothAudioManager::Resume() {
         std::cout << "DEBUG: Forced playback_position to 0.01f on resume.\n";
     }
     
-    // Set flag to force an immediate position update on next DBus signal.
+    // Set flag so that the next position update is forced.
     just_resumed = true;
     
     std::cout << "DEBUG: Resume() completed, state set to Playing, just_resumed flag set.\n";
@@ -278,7 +278,7 @@ PlaybackState BluetoothAudioManager::GetState() const {
 // Update and Playback Fraction
 // -----------------------------------------------------------------------------
 void BluetoothAudioManager::Update(float delta_time) {
-    // For debugging, you can uncomment the next line to log each update call.
+    // Uncomment the next line for per-frame debug info.
     // std::cout << "DEBUG: Update() called with delta_time: " << delta_time << "\n";
     if (state == PlaybackState::Playing) {
         ProcessPendingDBusMessages();
@@ -509,7 +509,10 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                     dbus_message_iter_get_basic(&status_variant, &status_str);
                     if (status_str) {
                         std::string status(status_str);
-                        if (status == "paused") {
+                        // If we just resumed, ignore an immediate "paused" signal.
+                        if (status == "paused" && just_resumed) {
+                            std::cout << "DEBUG: Ignoring paused status due to just_resumed flag.\n";
+                        } else if (status == "paused") {
                             state = PlaybackState::Paused;
                             ignore_position_updates = true;
                             std::cout << "DEBUG: Status update: paused\n";
