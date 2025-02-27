@@ -527,7 +527,7 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                         dbus_message_iter_get_basic(&variant_iter, &pos_val);
                         new_position = static_cast<float>(pos_val) / 1000.0f;
                     }
-                    if (std::abs(new_position - playback_position) > 0.05f) {
+                    if (std::abs(new_position - playback_position) > 0.01f) {
                         playback_position = new_position;
                         time_since_last_dbus_position = 0.0f;
                         std::cout << "Updated Playback Position: " << playback_position << "s\n";
