@@ -3,11 +3,7 @@
 #include <iomanip>
 #include <sstream>
 #include <algorithm>
-#include <cstdlib> // For std::system()
-
-#ifdef NO_DBUS
-  // NO_DBUS mode uses the local playlist (mock mode)
-#else
+#include <cstdlib>
 #include <cstring>
 #include <dbus/dbus.h>
 
@@ -30,19 +26,14 @@ static DBusMessage* CallMethod(DBusConnection* conn, const char* destination, co
     }
     return reply;
 }
-#endif
 
 // -----------------------------------------------------------------------------
 // Constructor and Destructor
 // -----------------------------------------------------------------------------
 BluetoothAudioManager::BluetoothAudioManager()
     : state(PlaybackState::Stopped),
-      volume(64)
-#ifdef NO_DBUS
-    , current_track_index(0),
-      elapsed_time(0.0f)
-#else
-    , current_player_path(""),
+      volume(64),
+      current_player_path(""),
       current_track_title(""),
       current_track_artist(""),
       current_track_duration(0.0f),
@@ -50,7 +41,6 @@ BluetoothAudioManager::BluetoothAudioManager()
       ignore_position_updates(false),
       time_since_last_dbus_position(0.0f),
       dbus_conn(nullptr)
-#endif
 {
 }
 
@@ -62,9 +52,6 @@ BluetoothAudioManager::~BluetoothAudioManager() {
 // Initialize and Shutdown
 // -----------------------------------------------------------------------------
 bool BluetoothAudioManager::Initialize() {
-#ifdef NO_DBUS
-    std::cout << "NO_DBUS mode enabled. Running mock logic only.\n";
-#else
     if (!SetupDBus()) {
         std::cerr << "Warning: Failed to set up D-Bus connection. Cannot get metadata.\n";
     } else {
@@ -74,38 +61,20 @@ bool BluetoothAudioManager::Initialize() {
         }
         ListenForSignals();
     }
-#endif
     return true;
 }
 
 void BluetoothAudioManager::Shutdown() {
-#ifdef NO_DBUS
-    // Nothing special to do in mock mode.
-#else
     if (dbus_conn) {
         dbus_connection_unref(dbus_conn);
         dbus_conn = nullptr;
     }
-#endif
 }
 
 // -----------------------------------------------------------------------------
 // Playback Commands
 // -----------------------------------------------------------------------------
 void BluetoothAudioManager::Play() {
-#ifdef NO_DBUS
-    if (playlist.empty()) {
-        std::cerr << "Playlist is empty.\n";
-        return;
-    }
-    if (state == PlaybackState::Paused) {
-        Resume();
-        return;
-    }
-    state = PlaybackState::Playing;
-    elapsed_time = 0.0f;
-    std::cout << "Playing (mock): " << playlist[current_track_index].filepath << "\n";
-#else
     if (current_player_path.empty()) {
         std::cerr << "No active MediaPlayer1 found.\n";
         return;
@@ -130,16 +99,9 @@ void BluetoothAudioManager::Play() {
     ignore_position_updates = false;
     time_since_last_dbus_position = 0.0f;
     std::cout << "Playing (DBus).\n";
-#endif
 }
 
 void BluetoothAudioManager::Pause() {
-#ifdef NO_DBUS
-    if (state == PlaybackState::Playing) {
-        state = PlaybackState::Paused;
-        std::cout << "Music paused (mock).\n";
-    }
-#else
     if (current_player_path.empty()) {
         std::cerr << "No active MediaPlayer1 found.\n";
         return;
@@ -163,17 +125,9 @@ void BluetoothAudioManager::Pause() {
     state = PlaybackState::Paused;
     ignore_position_updates = true;
     std::cout << "Music paused (DBus).\n";
-#endif
 }
 
 void BluetoothAudioManager::Resume() {
-#ifdef NO_DBUS
-    if (state == PlaybackState::Paused) {
-        state = PlaybackState::Playing;
-        std::cout << "Music resumed (mock).\n";
-    }
-#else
-    // In DBus mode, resuming is simply issuing Play again.
     if (current_player_path.empty()) {
         std::cerr << "No active MediaPlayer1 found.\n";
         return;
@@ -196,26 +150,17 @@ void BluetoothAudioManager::Resume() {
     }
     dbus_message_unref(reply);
     
-    // Ensure playback state is updated immediately
     state = PlaybackState::Playing;
-    ignore_position_updates = false;  // Make sure this flag is reset
-    time_since_last_dbus_position = 0.0f;  // Reset this timer
-    
+    ignore_position_updates = false;
+    time_since_last_dbus_position = 0.0f;
     std::cout << "Resumed (DBus).\n";
-#endif
 }
 
 void BluetoothAudioManager::NextTrack() {
-#ifdef NO_DBUS
-    if (playlist.empty()) return;
-    current_track_index = (current_track_index + 1) % static_cast<int>(playlist.size());
-    Play();
-#else
     if (current_player_path.empty()) {
         std::cerr << "No active MediaPlayer1 found.\n";
         return;
     }
-    // In DBus mode, only send the Next command.
     DBusMessage* msg = dbus_message_new_method_call("org.bluez", current_player_path.c_str(),
                                                     "org.bluez.MediaPlayer1", "Next");
     if (!msg) {
@@ -233,38 +178,20 @@ void BluetoothAudioManager::NextTrack() {
     }
     dbus_message_unref(reply);
     std::cout << "Next track (DBus) command sent.\n";
-    // Do not update any local track index here.
-#endif
 }
 
 void BluetoothAudioManager::PreviousTrack() {
-#ifdef NO_DBUS
-    if (playlist.empty()) return;
-    // In mock mode, if more than 5 seconds into the track, restart.
-    if (elapsed_time > 5.0f) {
-        elapsed_time = 0.0f;
-        std::cout << "Reset current track position to start (mock).\n";
-        return;
-    }
-    current_track_index = (current_track_index - 1 + static_cast<int>(playlist.size())) % static_cast<int>(playlist.size());
-    Play();
-#else
     if (current_player_path.empty()) {
         std::cerr << "No active MediaPlayer1 found.\n";
         return;
     }
     
-    // Store the current position before making any changes
     float current_pos = playback_position;
     
-    // In DBus mode, if more than 5 seconds have elapsed, restart current track.
     if (current_pos > 5.0f) {
-        // Use a specific DBus call to reset position if available,
-        // or just send a Previous and then Next to return to the same track
-        // at the beginning
         playback_position = 0.0f;
         DBusMessage* msg = dbus_message_new_method_call("org.bluez", current_player_path.c_str(),
-                                                    "org.bluez.MediaPlayer1", "Previous");
+                                                        "org.bluez.MediaPlayer1", "Previous");
         if (!msg) {
             std::cerr << "Failed to create D-Bus Previous method call.\n";
             return;
@@ -280,7 +207,6 @@ void BluetoothAudioManager::PreviousTrack() {
         }
         dbus_message_unref(reply);
         
-        // Force an immediate state update
         ignore_position_updates = false;
         time_since_last_dbus_position = 0.0f;
         
@@ -288,9 +214,8 @@ void BluetoothAudioManager::PreviousTrack() {
         return;
     }
     
-    // If we're not resetting the current track, go to previous track
     DBusMessage* msg = dbus_message_new_method_call("org.bluez", current_player_path.c_str(),
-                                                "org.bluez.MediaPlayer1", "Previous");
+                                                    "org.bluez.MediaPlayer1", "Previous");
     if (!msg) {
         std::cerr << "Failed to create D-Bus Previous method call.\n";
         return;
@@ -306,25 +231,19 @@ void BluetoothAudioManager::PreviousTrack() {
     }
     dbus_message_unref(reply);
     
-    // Force an immediate state update
     ignore_position_updates = false;
     time_since_last_dbus_position = 0.0f;
     
     std::cout << "Previous track (DBus) command sent.\n";
-#endif
 }
 
 // -----------------------------------------------------------------------------
-// SetVolume, GetVolume, and GetState (common to both modes)
+// SetVolume, GetVolume, and GetState
 // -----------------------------------------------------------------------------
 void BluetoothAudioManager::SetVolume(int vol) {
     volume = std::clamp(vol, 0, 128);
     std::cout << "Volume set to: " << volume << "\n";
-#ifndef NO_DBUS
     SendVolumeUpdate(volume);
-#else
-    // In mock mode, you might simulate volume change.
-#endif
 }
 
 int BluetoothAudioManager::GetVolume() const {
@@ -335,68 +254,31 @@ PlaybackState BluetoothAudioManager::GetState() const {
     return state;
 }
 
-#ifdef NO_DBUS
-void BluetoothAudioManager::AddToPlaylist(const std::string& filepath, float duration) {
-    playlist.push_back(Track{filepath, duration});
-    std::cout << "Added to playlist: " << filepath << " Duration: " << duration << "s\n";
-}
-
-void BluetoothAudioManager::ClearPlaylist() {
-    playlist.clear();
-    state = PlaybackState::Stopped;
-    std::cout << "Playlist cleared.\n";
-}
-#endif
-
 // -----------------------------------------------------------------------------
 // Update and Playback Fraction
 // -----------------------------------------------------------------------------
 void BluetoothAudioManager::Update(float delta_time) {
-#ifdef NO_DBUS
-    if (state == PlaybackState::Playing && !playlist.empty()) {
-        elapsed_time += delta_time;
-        const Track& current_track = playlist[current_track_index];
-        if (elapsed_time >= current_track.duration) {
-            elapsed_time = 0.0f;
-            NextTrack();
-        }
-    }
-#else
     if (state == PlaybackState::Playing) {
         ProcessPendingDBusMessages();
         
-        // Update position even if we haven't received a recent DBus update
         if (!ignore_position_updates) {
             time_since_last_dbus_position += delta_time;
             playback_position += delta_time;
             
-            // Check for end of track
             if (current_track_duration > 0 && playback_position >= current_track_duration) {
                 playback_position = 0.0f;
                 NextTrack();
             }
         }
     }
-#endif
 }
 
 float BluetoothAudioManager::GetPlaybackFraction() const {
-#ifdef NO_DBUS
-    if (playlist.empty()) return 0.0f;
-    const Track& current_track = playlist[current_track_index];
-    return (current_track.duration > 0.0f) ? elapsed_time / current_track.duration : 0.0f;
-#else
     return (current_track_duration > 0.0f) ? playback_position / current_track_duration : 0.0f;
-#endif
 }
 
 std::string BluetoothAudioManager::GetTimeRemaining() const {
-#ifdef NO_DBUS
-    if (playlist.empty()) return "00:00";
-    float remaining = playlist[current_track_index].duration - elapsed_time;
-#else
     float remaining = current_track_duration - playback_position;
-#endif
     if (remaining < 0.0f)
         remaining = 0.0f;
     int minutes = static_cast<int>(remaining) / 60;
@@ -407,18 +289,13 @@ std::string BluetoothAudioManager::GetTimeRemaining() const {
     return oss.str();
 }
 
-#ifndef NO_DBUS
 // -----------------------------------------------------------------------------
-// DBus Helper Functions (Setup, GetManagedObjects, Listen, Process, etc.)
+// DBus Helper Functions
 // -----------------------------------------------------------------------------
 bool BluetoothAudioManager::SetupDBus() {
     DBusError err;
     dbus_error_init(&err);
-#ifdef __APPLE__
-    dbus_conn = dbus_bus_get(DBUS_BUS_SESSION, &err);
-#else
     dbus_conn = dbus_bus_get(DBUS_BUS_SYSTEM, &err);
-#endif
     if (dbus_error_is_set(&err)) {
         std::cerr << "D-Bus Error in SetupDBus: " << err.message << "\n";
         dbus_error_free(&err);
@@ -465,7 +342,7 @@ bool BluetoothAudioManager::GetManagedObjects() {
                 dbus_message_iter_recurse(&iface_array, &iface_entry);
                 const char* iface_name = nullptr;
                 dbus_message_iter_get_basic(&iface_entry, &iface_name);
-                dbus_message_iter_next(&iface_entry); // skip properties array
+                dbus_message_iter_next(&iface_entry);
                 if (iface_name && strcmp(iface_name, "org.bluez.MediaPlayer1") == 0) {
                     std::cout << "Found MediaPlayer1 at: " << object_path << "\n";
                     current_player_path = object_path;
@@ -484,9 +361,6 @@ bool BluetoothAudioManager::GetManagedObjects() {
 }
 
 void BluetoothAudioManager::ListenForSignals() {
-    const char* rule_added = "type='signal',interface='org.freedesktop.DBus.ObjectManager',member='InterfacesAdded',sender='org.bluez'";
-    dbus_bus_add_match(dbus_conn, rule_added, NULL);
-    dbus_connection_flush(dbus_conn);
     const char* rule_props = "type='signal',interface='org.freedesktop.DBus.Properties',member='PropertiesChanged',sender='org.bluez'";
     dbus_bus_add_match(dbus_conn, rule_props, NULL);
     dbus_connection_flush(dbus_conn);
@@ -504,11 +378,8 @@ void BluetoothAudioManager::ProcessPendingDBusMessages() {
             const char* interface = dbus_message_get_interface(msg);
             const char* member = dbus_message_get_member(msg);
             if (interface && member) {
-                if (strcmp(interface, "org.freedesktop.DBus.ObjectManager") == 0 &&
-                    strcmp(member, "InterfacesAdded") == 0) {
-                    std::cout << "Signal received: InterfacesAdded\n";
-                } else if (strcmp(interface, "org.freedesktop.DBus.Properties") == 0 &&
-                           strcmp(member, "PropertiesChanged") == 0) {
+                if (strcmp(interface, "org.freedesktop.DBus.Properties") == 0 &&
+                    strcmp(member, "PropertiesChanged") == 0) {
                     std::cout << "Signal received: PropertiesChanged\n";
                     HandlePropertiesChanged(msg);
                 }
@@ -524,7 +395,6 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
         std::cerr << "PropertiesChanged signal has no arguments.\n";
         return;
     }
-    // Skip the interface name.
     const char* iface_name = nullptr;
     dbus_message_iter_get_basic(&iter, &iface_name);
     dbus_message_iter_next(&iter);
@@ -541,7 +411,6 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
         dbus_message_iter_get_basic(&entry_iter, &key);
         dbus_message_iter_next(&entry_iter);
         
-        // Process Metadata/Track changes.
         if (strcmp(key, "Metadata") == 0 || strcmp(key, "Track") == 0) {
             int variant_type = dbus_message_iter_get_arg_type(&entry_iter);
             if (variant_type == DBUS_TYPE_VARIANT) {
@@ -605,7 +474,6 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                 }
             }
         }
-        // Process "Status" changes.
         else if (strcmp(key, "Status") == 0) {
             int type = dbus_message_iter_get_arg_type(&entry_iter);
             if (type == DBUS_TYPE_VARIANT) {
@@ -628,7 +496,6 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                 }
             }
         }
-        // Process "Volume" changes.
         else if (strcmp(key, "Volume") == 0) {
             int type = dbus_message_iter_get_arg_type(&entry_iter);
             if (type == DBUS_TYPE_VARIANT) {
@@ -642,7 +509,6 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                 }
             }
         }
-        // Process "Position" updates.
         else if (strcmp(key, "Position") == 0) {
             if (state == PlaybackState::Playing) {
                 int type = dbus_message_iter_get_arg_type(&entry_iter);
@@ -678,4 +544,3 @@ void BluetoothAudioManager::SendVolumeUpdate(int vol) {
     std::string command = "amixer set Master " + std::to_string(percentage) + "%";
     std::system(command.c_str());
 }
-#endif

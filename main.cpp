@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <SDL.h>
-
 #ifdef __APPLE__
 #include <OpenGL/gl3.h>
 #else
@@ -27,25 +26,12 @@ int main(int, char**)
         return -1;
     }
 
-#if defined(IMGUI_IMPL_OPENGL_ES2)
-    const char* glsl_version = "#version 100";
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
-#elif defined(__APPLE__)
-    const char* glsl_version = "#version 150";
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
-#else
+    // Use OpenGL 130 GLSL version (targeting Linux/DBus mode)
     const char* glsl_version = "#version 130";
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
-#endif
 
 #ifdef SDL_HINT_IME_SHOW_UI
     SDL_SetHint(SDL_HINT_IME_SHOW_UI, "1");
@@ -58,8 +44,8 @@ int main(int, char**)
         printf("SDL_GetCurrentDisplayMode failed: %s\n", SDL_GetError());
         return -1;
     }
-    int window_width = DM.w;   // e.g., 1280
-    int window_height = DM.h;  // e.g., 480
+    int window_width = DM.w;
+    int window_height = DM.h;
 
     // Compute scale factors so that our 80×30 virtual space fits exactly
     float scale_x = static_cast<float>(window_width) / VIRTUAL_WIDTH;
@@ -88,9 +74,9 @@ int main(int, char**)
         return -1;
     }
     
-    // Hide the cursor and print its state for debugging.
+    // Hide the cursor for a cleaner UI
     SDL_SetRelativeMouseMode(SDL_TRUE);
-    printf("Cursor state after disabling: %d\n", SDL_ShowCursor(-1));  // Should print 0
+    printf("Cursor state after disabling: %d\n", SDL_ShowCursor(-1));
 
     SDL_GLContext gl_context = SDL_GL_CreateContext(window);
     if (!gl_context)
@@ -122,11 +108,10 @@ int main(int, char**)
 
     ImVec4 clear_color = ImVec4(0, 0, 0, 1);
 
-    // Initialize ImGui backends
     ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-    // Initialize BluetoothAudioManager (DBus enabled)
+    // Initialize BluetoothAudioManager (DBus enabled only)
     BluetoothAudioManager audioManager;
     if (!audioManager.Initialize())
     {
@@ -134,12 +119,6 @@ int main(int, char**)
         return -1;
     }
     
-    // In mock mode, add dummy playlist entries.
-#ifdef NO_DBUS
-    audioManager.AddToPlaylist("Track1.mp3", 10.0f);
-    audioManager.AddToPlaylist("Track2.mp3", 200.0f);
-#endif
-
     audioManager.Play();
 
     // Initialize Sprite and UI modules
@@ -159,10 +138,9 @@ int main(int, char**)
                 done = true;
             if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE)
                 done = true;
-            // Keyboard controls
             if (event.type == SDL_KEYDOWN)
             {
-                // Map the "e" key to exit the program
+                // Press "e" to exit
                 if (event.key.keysym.sym == SDLK_e)
                 {
                     done = true;
@@ -171,33 +149,17 @@ int main(int, char**)
                 {
                     case SDLK_SPACE:
                         if (audioManager.GetState() == PlaybackState::Playing)
-                        {
                             audioManager.Pause();
-                        }
                         else if (audioManager.GetState() == PlaybackState::Paused)
-                        {
-                            // In DBus mode, a single call to Resume() is now sufficient.
-#ifdef NO_DBUS
                             audioManager.Resume();
-#else
-                            audioManager.Resume();
-#endif
-                        }
                         else
-                        {
                             audioManager.Play();
-                        }
                         break;
                     case SDLK_RIGHT:
                         audioManager.NextTrack();
                         break;
                     case SDLK_LEFT:
-                        // In DBus mode, call PreviousTrack() only once.
-#ifdef NO_DBUS
                         audioManager.PreviousTrack();
-#else
-                        audioManager.PreviousTrack();
-#endif
                         break;
                     case SDLK_UP:
                         audioManager.SetVolume(audioManager.GetVolume() + 8);
@@ -215,10 +177,10 @@ int main(int, char**)
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
-        // Update audio (DBus signals will update metadata)
+        // Update DBus audio manager
         audioManager.Update(io.DeltaTime);
 
-        // Draw one fullscreen ImGui window
+        // Draw a fullscreen ImGui window for the head unit UI
         ImGuiWindowFlags wf = ImGuiWindowFlags_NoResize |
                               ImGuiWindowFlags_NoMove |
                               ImGuiWindowFlags_NoTitleBar |
@@ -231,7 +193,6 @@ int main(int, char**)
         ui.Render(draw_list, audioManager, sprite, scale_x, scale_y);
         ImGui::End();
 
-        // Render ImGui frame
         ImGui::Render();
         glViewport(0, 0, window_width, window_height);
         glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
