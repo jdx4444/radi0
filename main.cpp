@@ -77,16 +77,19 @@ int main(int, char**)
         SDL_WINDOW_FULLSCREEN_DESKTOP
     );
     SDL_Window* window = SDL_CreateWindow("Retro Car Head Unit",
-                                          SDL_WINDOWPOS_UNDEFINED,
-                                          SDL_WINDOWPOS_UNDEFINED,
-                                          window_width, window_height,
-                                          window_flags);
+                                      SDL_WINDOWPOS_UNDEFINED,
+                                      SDL_WINDOWPOS_UNDEFINED,
+                                      window_width, window_height,
+                                      window_flags);
     if (!window)
     {
         printf("Error: SDL_CreateWindow(): %s\n", SDL_GetError());
         SDL_Quit();
         return -1;
     }
+    
+    // Hide the cursor
+    SDL_ShowCursor(SDL_DISABLE);
 
     SDL_GLContext gl_context = SDL_GL_CreateContext(window);
     if (!gl_context)
@@ -111,10 +114,10 @@ int main(int, char**)
     style.WindowRounding = 0.0f;
     style.WindowPadding = ImVec2(0, 0);
     style.Colors[ImGuiCol_WindowBg]      = ImVec4(0, 0, 0, 1);
-    style.Colors[ImGuiCol_Text]          = ImVec4(0, 1, 0, 1);
-    style.Colors[ImGuiCol_Border]        = ImVec4(0, 1, 0, 1);
+    style.Colors[ImGuiCol_Text] = ImVec4(171.0f/255.0f, 254.0f/255.0f, 233.0f/255.0f, 1.0f);
+    style.Colors[ImGuiCol_Border]        = ImVec4(171.0f/255.0f, 254.0f/255.0f, 233.0f/255.0f, 1.0f);
     style.Colors[ImGuiCol_FrameBg]       = ImVec4(0, 0, 0, 1);
-    style.Colors[ImGuiCol_PlotHistogram] = ImVec4(0, 1, 0, 1);
+    style.Colors[ImGuiCol_PlotHistogram] = ImVec4(171.0f/255.0f, 254.0f/255.0f, 233.0f/255.0f, 1.0f);
 
     ImVec4 clear_color = ImVec4(0, 0, 0, 1);
 
