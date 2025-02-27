@@ -89,7 +89,7 @@ int main(int, char**)
     }
     
     // Hide the cursor and print its state for debugging.
-    SDL_ShowCursor(SDL_DISABLE);
+    SDL_SetRelativeMouseMode(SDL_TRUE);
     printf("Cursor state after disabling: %d\n", SDL_ShowCursor(-1));  // Should print 0
 
     SDL_GLContext gl_context = SDL_GL_CreateContext(window);
