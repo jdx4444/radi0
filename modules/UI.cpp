@@ -3,7 +3,7 @@
 #include <string>
 
 // Define some colors
-const ImU32 COLOR_GREEN = IM_COL32(0, 255, 0, 255);
+const ImU32 COLOR_GREEN = IM_COL32(171, 254, 233, 255);
 const ImU32 COLOR_BLACK = IM_COL32(0, 0, 0, 255);
 
 UI::UI() {}
