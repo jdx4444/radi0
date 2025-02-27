@@ -176,11 +176,10 @@ int main(int, char**)
                         }
                         else if (audioManager.GetState() == PlaybackState::Paused)
                         {
-                            // In DBus mode, call Resume() twice to force the sprite to update immediately.
+                            // In DBus mode, a single call to Resume() is now sufficient.
 #ifdef NO_DBUS
                             audioManager.Resume();
 #else
-                            audioManager.Resume();
                             audioManager.Resume();
 #endif
                         }
@@ -193,14 +192,10 @@ int main(int, char**)
                         audioManager.NextTrack();
                         break;
                     case SDLK_LEFT:
-                        // In DBus mode, if the playback position is >5s, issue an extra call.
+                        // In DBus mode, call PreviousTrack() only once.
 #ifdef NO_DBUS
                         audioManager.PreviousTrack();
 #else
-                        if (audioManager.GetCurrentPlaybackPosition() > 5.0f)
-                        {
-                            audioManager.PreviousTrack();
-                        }
                         audioManager.PreviousTrack();
 #endif
                         break;

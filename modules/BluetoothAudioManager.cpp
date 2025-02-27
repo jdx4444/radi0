@@ -174,7 +174,33 @@ void BluetoothAudioManager::Resume() {
     }
 #else
     // In DBus mode, resuming is simply issuing Play again.
-    Play();
+    if (current_player_path.empty()) {
+        std::cerr << "No active MediaPlayer1 found.\n";
+        return;
+    }
+    
+    DBusMessage* msg = dbus_message_new_method_call("org.bluez", current_player_path.c_str(),
+                                                    "org.bluez.MediaPlayer1", "Play");
+    if (!msg) {
+        std::cerr << "Failed to create D-Bus Play method call.\n";
+        return;
+    }
+    DBusError err;
+    dbus_error_init(&err);
+    DBusMessage* reply = dbus_connection_send_with_reply_and_block(dbus_conn, msg, -1, &err);
+    dbus_message_unref(msg);
+    if (dbus_error_is_set(&err)) {
+        std::cerr << "D-Bus Play method call error: " << err.message << "\n";
+        dbus_error_free(&err);
+        return;
+    }
+    dbus_message_unref(reply);
+    
+    // Ensure playback state is updated immediately
+    state = PlaybackState::Playing;
+    ignore_position_updates = false;  // Make sure this flag is reset
+    time_since_last_dbus_position = 0.0f;  // Reset this timer
+    
     std::cout << "Resumed (DBus).\n";
 #endif
 }
@@ -227,14 +253,44 @@ void BluetoothAudioManager::PreviousTrack() {
         std::cerr << "No active MediaPlayer1 found.\n";
         return;
     }
+    
+    // Store the current position before making any changes
+    float current_pos = playback_position;
+    
     // In DBus mode, if more than 5 seconds have elapsed, restart current track.
-    if (playback_position > 5.0f) {
+    if (current_pos > 5.0f) {
+        // Use a specific DBus call to reset position if available,
+        // or just send a Previous and then Next to return to the same track
+        // at the beginning
         playback_position = 0.0f;
+        DBusMessage* msg = dbus_message_new_method_call("org.bluez", current_player_path.c_str(),
+                                                    "org.bluez.MediaPlayer1", "Previous");
+        if (!msg) {
+            std::cerr << "Failed to create D-Bus Previous method call.\n";
+            return;
+        }
+        DBusError err;
+        dbus_error_init(&err);
+        DBusMessage* reply = dbus_connection_send_with_reply_and_block(dbus_conn, msg, -1, &err);
+        dbus_message_unref(msg);
+        if (dbus_error_is_set(&err)) {
+            std::cerr << "D-Bus Previous method call error: " << err.message << "\n";
+            dbus_error_free(&err);
+            return;
+        }
+        dbus_message_unref(reply);
+        
+        // Force an immediate state update
+        ignore_position_updates = false;
+        time_since_last_dbus_position = 0.0f;
+        
         std::cout << "Reset current track position to start (DBus).\n";
         return;
     }
+    
+    // If we're not resetting the current track, go to previous track
     DBusMessage* msg = dbus_message_new_method_call("org.bluez", current_player_path.c_str(),
-                                                    "org.bluez.MediaPlayer1", "Previous");
+                                                "org.bluez.MediaPlayer1", "Previous");
     if (!msg) {
         std::cerr << "Failed to create D-Bus Previous method call.\n";
         return;
@@ -249,8 +305,12 @@ void BluetoothAudioManager::PreviousTrack() {
         return;
     }
     dbus_message_unref(reply);
+    
+    // Force an immediate state update
+    ignore_position_updates = false;
+    time_since_last_dbus_position = 0.0f;
+    
     std::cout << "Previous track (DBus) command sent.\n";
-    // Again, do not modify local state—wait for updated Metadata.
 #endif
 }
 
@@ -304,10 +364,13 @@ void BluetoothAudioManager::Update(float delta_time) {
 #else
     if (state == PlaybackState::Playing) {
         ProcessPendingDBusMessages();
-        time_since_last_dbus_position += delta_time;
-        // If no recent DBus position update, simulate playback progress.
-        if (time_since_last_dbus_position >= 0.1f) {
+        
+        // Update position even if we haven't received a recent DBus update
+        if (!ignore_position_updates) {
+            time_since_last_dbus_position += delta_time;
             playback_position += delta_time;
+            
+            // Check for end of track
             if (current_track_duration > 0 && playback_position >= current_track_duration) {
                 playback_position = 0.0f;
                 NextTrack();
