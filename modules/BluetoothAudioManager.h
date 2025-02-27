@@ -47,6 +47,7 @@ private:
     float playback_position;      // In seconds (from DBus "Position" updates)
     bool ignore_position_updates;
     float time_since_last_dbus_position;
+    bool just_resumed;  // <<< NEW: Flag to force update after resume
     struct DBusConnection* dbus_conn;
 
     bool SetupDBus();

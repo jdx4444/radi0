@@ -40,6 +40,7 @@ BluetoothAudioManager::BluetoothAudioManager()
       playback_position(0.0f),
       ignore_position_updates(false),
       time_since_last_dbus_position(0.0f),
+      just_resumed(false), // NEW: Flag to force immediate update after resume
       dbus_conn(nullptr)
 {
 }
@@ -155,12 +156,11 @@ void BluetoothAudioManager::Resume() {
     ignore_position_updates = false;
     time_since_last_dbus_position = 0.0f;
     
-    // Force a tiny nudge to the playback position so the sprite starts moving.
-    playback_position += 0.02f;
+    // Set flag to force an immediate position update on next DBus signal.
+    just_resumed = true;
     
     std::cout << "Resumed (DBus).\n";
 }
-
 
 void BluetoothAudioManager::NextTrack() {
     if (current_player_path.empty()) {
@@ -417,6 +417,7 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
         dbus_message_iter_get_basic(&entry_iter, &key);
         dbus_message_iter_next(&entry_iter);
         
+        // Process Metadata/Track changes.
         if (strcmp(key, "Metadata") == 0 || strcmp(key, "Track") == 0) {
             int variant_type = dbus_message_iter_get_arg_type(&entry_iter);
             if (variant_type == DBUS_TYPE_VARIANT) {
@@ -480,6 +481,7 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                 }
             }
         }
+        // Process "Status" changes.
         else if (strcmp(key, "Status") == 0) {
             int type = dbus_message_iter_get_arg_type(&entry_iter);
             if (type == DBUS_TYPE_VARIANT) {
@@ -502,6 +504,7 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                 }
             }
         }
+        // Process "Volume" changes.
         else if (strcmp(key, "Volume") == 0) {
             int type = dbus_message_iter_get_arg_type(&entry_iter);
             if (type == DBUS_TYPE_VARIANT) {
@@ -515,6 +518,7 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                 }
             }
         }
+        // Process "Position" updates.
         else if (strcmp(key, "Position") == 0) {
             if (state == PlaybackState::Playing) {
                 int type = dbus_message_iter_get_arg_type(&entry_iter);
@@ -533,9 +537,12 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                         dbus_message_iter_get_basic(&variant_iter, &pos_val);
                         new_position = static_cast<float>(pos_val) / 1000.0f;
                     }
-                    if (std::abs(new_position - playback_position) > 0.05f) {
+                    // Force update if we just resumed, regardless of threshold.
+                    if (just_resumed || std::abs(new_position - playback_position) > 0.05f) {
                         playback_position = new_position;
                         time_since_last_dbus_position = 0.0f;
+                        if (just_resumed)
+                            just_resumed = false;
                         std::cout << "Updated Playback Position: " << playback_position << "s\n";
                     }
                 }
