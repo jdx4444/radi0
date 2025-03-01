@@ -27,6 +27,8 @@ struct LayoutConfig {
     // Sprite Offsets
     float spriteXOffset = -1.0f;
     float spriteYOffset = -8.0f;
+    // Base Y position for sprite (in virtual units)
+    float spriteBaseY   = 28.0f;
     // Mask Bars
     float maskBarWidth  = 5.0f;
     float maskBarHeight = 3.0f;
@@ -38,10 +40,13 @@ public:
     ~UI();
 
     void Initialize();
+    // Updated Render signature using unified scale and offsets
     void Render(ImDrawList* draw_list,
                 BluetoothAudioManager& audioManager,
                 Sprite& sprite,
-                float scale_x, float scale_y);
+                float scale,
+                float offset_x,
+                float offset_y);
     void Cleanup();
 
     // Expose layout config for adjustments
@@ -50,18 +55,28 @@ public:
 private:
     void DrawVolumeBar(ImDrawList* draw_list,
                        BluetoothAudioManager& audioManager,
-                       float scale_x, float scale_y);
+                       float scale,
+                       float offset_x,
+                       float offset_y);
     void DrawArtistAndTrackInfo(ImDrawList* draw_list,
                                 BluetoothAudioManager& audioManager,
-                                float scale_x, float scale_y);
+                                float scale,
+                                float offset_x,
+                                float offset_y);
     void DrawProgressLine(ImDrawList* draw_list,
                           BluetoothAudioManager& audioManager,
-                          float scale_x, float scale_y);
+                          float scale,
+                          float offset_x,
+                          float offset_y);
     void DrawTimeRemaining(ImDrawList* draw_list,
                            BluetoothAudioManager& audioManager,
-                           float scale_x, float scale_y);
+                           float scale,
+                           float offset_x,
+                           float offset_y);
     void DrawMaskBars(ImDrawList* draw_list,
-                      float scale_x, float scale_y);
+                      float scale,
+                      float offset_x,
+                      float offset_y);
 
     LayoutConfig layout;
 };

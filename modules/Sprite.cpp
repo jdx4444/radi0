@@ -9,25 +9,26 @@ Sprite::Sprite()
 
 Sprite::~Sprite() {}
 
-void Sprite::Initialize(float scale_x, float scale_y)
+void Sprite::Initialize(float scale)
 {
-    // Set sprite size to about 2×2 virtual units (e.g., ~32×32 pixels at scale=16)
-    size = ImVec2(2.0f * scale_x, 2.0f * scale_y);
+    // Set sprite size to about 2×2 virtual units.
+    size = ImVec2(2.0f * scale, 2.0f * scale);
 }
 
 void Sprite::UpdatePosition(float progress_fraction,
                             float line_start_x, float line_end_x,
-                            float scale_x, float scale_y,
-                            float sprite_x_offset, float sprite_y_offset)
+                            float scale, float offset_x, float offset_y,
+                            float sprite_x_offset, float sprite_y_offset,
+                            float sprite_base_y)
 {
-    float line_pixel_start = line_start_x * scale_x;
-    float line_pixel_end   = line_end_x   * scale_x;
+    float line_pixel_start = line_start_x * scale + offset_x;
+    float line_pixel_end   = line_end_x   * scale + offset_x;
     float total_movement = (line_pixel_end - line_pixel_start);
     float new_x = line_pixel_start + total_movement * progress_fraction;
-    // Place sprite vertically near the progress bar (adjust as needed)
-    float new_y = 28.0f * scale_y;
-    new_x += sprite_x_offset * scale_x;
-    new_y += sprite_y_offset * scale_y;
+    // Position the sprite vertically using sprite_base_y (in virtual units)
+    float new_y = sprite_base_y * scale + offset_y;
+    new_x += sprite_x_offset * scale;
+    new_y += sprite_y_offset * scale;
     position = ImVec2(new_x, new_y);
 }
 
@@ -48,7 +49,7 @@ void Sprite::Draw(ImDrawList* draw_list, ImU32 color)
         {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
     };
 
-    // Use a smaller pixel size so the sprite isn’t too large
+    // Use a smaller pixel size so the sprite isn’t too large.
     float pixel_size = 0.08f * size.x;
     for (int y = 0; y < SPRITE_HEIGHT; ++y) {
         for (int x = 0; x < SPRITE_WIDTH; ++x) {

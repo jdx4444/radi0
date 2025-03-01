@@ -2,8 +2,8 @@
 #include <algorithm>
 #include <string>
 
-// Define some colors
-const ImU32 COLOR_GREEN = IM_COL32(171, 254, 233, 255);
+// Define some colors (update to hex #6dfe95)
+const ImU32 COLOR_GREEN = IM_COL32(109, 254, 149, 255);
 const ImU32 COLOR_BLACK = IM_COL32(0, 0, 0, 255);
 
 UI::UI() {}
@@ -16,17 +16,19 @@ void UI::Initialize() {
 void UI::Render(ImDrawList* draw_list,
                 BluetoothAudioManager& audioManager,
                 Sprite& sprite,
-                float scale_x, float scale_y)
+                float scale,
+                float offset_x,
+                float offset_y)
 {
     // 1) Draw the volume bar near the top
-    DrawVolumeBar(draw_list, audioManager, scale_x, scale_y);
+    DrawVolumeBar(draw_list, audioManager, scale, offset_x, offset_y);
 
     // 2) Draw scrolling artist and track info using metadata from BluetoothAudioManager
-    DrawArtistAndTrackInfo(draw_list, audioManager, scale_x, scale_y);
+    DrawArtistAndTrackInfo(draw_list, audioManager, scale, offset_x, offset_y);
 
     // 3) Draw the progress line and remaining time
-    DrawProgressLine(draw_list, audioManager, scale_x, scale_y);
-    DrawTimeRemaining(draw_list, audioManager, scale_x, scale_y);
+    DrawProgressLine(draw_list, audioManager, scale, offset_x, offset_y);
+    DrawTimeRemaining(draw_list, audioManager, scale, offset_x, offset_y);
 
     // 4) Update and draw the car sprite above the progress bar
     constexpr float spriteVirtualWidth = 19 * 0.16f; // Approximately 3.04 virtual units
@@ -34,13 +36,14 @@ void UI::Render(ImDrawList* draw_list,
     float effectiveEndX   = layout.progressBarEndX;
     sprite.UpdatePosition(audioManager.GetPlaybackFraction(),
                           effectiveStartX, effectiveEndX,
-                          scale_x, scale_y,
+                          scale, offset_x, offset_y,
                           layout.spriteXOffset,
-                          layout.spriteYOffset);
+                          layout.spriteYOffset,
+                          layout.spriteBaseY);
     sprite.Draw(draw_list, COLOR_GREEN);
 
     // 5) Draw mask bars to conceal sprite edges if needed
-    DrawMaskBars(draw_list, scale_x, scale_y);
+    DrawMaskBars(draw_list, scale, offset_x, offset_y);
 }
 
 void UI::Cleanup() {
@@ -49,12 +52,14 @@ void UI::Cleanup() {
 
 void UI::DrawVolumeBar(ImDrawList* draw_list,
                        BluetoothAudioManager& audioManager,
-                       float scale_x, float scale_y)
+                       float scale,
+                       float offset_x,
+                       float offset_y)
 {
     // Draw the "Vol:" label.
     float label_virtual_x = layout.volumeLabelX;
     float volume_virtual_y  = layout.volumeLabelY;
-    ImVec2 label_pos = ToPixels(label_virtual_x, volume_virtual_y, scale_x, scale_y);
+    ImVec2 label_pos = ToPixels(label_virtual_x, volume_virtual_y, scale, offset_x, offset_y);
     ImGui::SetCursorPos(label_pos);
     ImGui::TextUnformatted("Vol:");
     ImVec2 text_size = ImGui::CalcTextSize("Vol:");
@@ -64,10 +69,10 @@ void UI::DrawVolumeBar(ImDrawList* draw_list,
     float bar_virtual_end   = bar_virtual_start + layout.volumeBarWidth;
 
     // Convert to pixels.
-    float bar_x_start_px = bar_virtual_start * scale_x;
-    float bar_x_end_px   = bar_virtual_end   * scale_x;
+    float bar_x_start_px = bar_virtual_start * scale + offset_x;
+    float bar_x_end_px   = bar_virtual_end   * scale + offset_x;
     float bar_y_px       = label_pos.y;
-    float bar_height_px  = layout.volumeBarHeight * scale_y;
+    float bar_height_px  = layout.volumeBarHeight * scale;
 
     // Draw the empty (black) bar.
     ImVec2 bar_pos(bar_x_start_px, bar_y_px);
@@ -95,10 +100,11 @@ void UI::DrawVolumeBar(ImDrawList* draw_list,
 
 void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
                                 BluetoothAudioManager& audioManager,
-                                float scale_x, float scale_y)
+                                float scale,
+                                float offset_x,
+                                float offset_y)
 {
     // Fetch metadata from BluetoothAudioManager.
-    // (When a phone is connected and playing, these values will be updated via DBus signals.)
     std::string artist_name = audioManager.GetCurrentTrackArtist();
     std::string track_name  = audioManager.GetCurrentTrackTitle();
     if (artist_name.empty())
@@ -112,10 +118,10 @@ void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
 
     // --- Draw Artist Name ---
     float artist_virtual_y = layout.artistY;
-    ImVec2 artist_pos = ToPixels(region_left_x, artist_virtual_y, scale_x, scale_y);
+    ImVec2 artist_pos = ToPixels(region_left_x, artist_virtual_y, scale, offset_x, offset_y);
     ImGui::SetWindowFontScale(1.6f);
     ImVec2 text_size = ImGui::CalcTextSize(artist_name.c_str());
-    float region_width_px = region_width * scale_x;
+    float region_width_px = region_width * scale;
 
     static float artist_scroll_offset = 0.0f;
     float dt = ImGui::GetIO().DeltaTime * 30.0f;
@@ -137,7 +143,7 @@ void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
 
     // --- Draw Track Name ---
     float track_virtual_y = layout.trackY;
-    ImVec2 track_pos = ToPixels(region_left_x, track_virtual_y, scale_x, scale_y);
+    ImVec2 track_pos = ToPixels(region_left_x, track_virtual_y, scale, offset_x, offset_y);
     ImGui::SetWindowFontScale(1.3f);
     text_size = ImGui::CalcTextSize(track_name.c_str());
     static float track_scroll_offset = 0.0f;
@@ -159,22 +165,27 @@ void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
 
 void UI::DrawProgressLine(ImDrawList* draw_list,
                           BluetoothAudioManager& audioManager,
-                          float scale_x, float scale_y)
+                          float scale,
+                          float offset_x,
+                          float offset_y)
 {
-    ImVec2 p1 = ToPixels(layout.progressBarStartX, layout.progressBarY, scale_x, scale_y);
-    ImVec2 p2 = ToPixels(layout.progressBarEndX, layout.progressBarY, scale_x, scale_y);
-    draw_list->AddLine(p1, p2, COLOR_GREEN, 4.0f);
+    ImVec2 p1 = ToPixels(layout.progressBarStartX, layout.progressBarY, scale, offset_x, offset_y);
+    ImVec2 p2 = ToPixels(layout.progressBarEndX, layout.progressBarY, scale, offset_x, offset_y);
+    float line_thickness = 4.0f * scale;
+    draw_list->AddLine(p1, p2, COLOR_GREEN, line_thickness);
 }
 
 void UI::DrawTimeRemaining(ImDrawList* draw_list,
                            BluetoothAudioManager& audioManager,
-                           float scale_x, float scale_y)
+                           float scale,
+                           float offset_x,
+                           float offset_y)
 {
     float region_width = layout.progressBarEndX - layout.progressBarStartX;
-    ImVec2 region_pos = ToPixels(layout.progressBarStartX, layout.progressBarY + layout.timeTextYOffset, scale_x, scale_y);
+    ImVec2 region_pos = ToPixels(layout.progressBarStartX, layout.progressBarY + layout.timeTextYOffset, scale, offset_x, offset_y);
     std::string time_str = audioManager.GetTimeRemaining();
     ImVec2 text_size = ImGui::CalcTextSize(time_str.c_str());
-    float region_width_pixels = region_width * scale_x;
+    float region_width_pixels = region_width * scale;
     float text_x = region_pos.x + (region_width_pixels - text_size.x) * 0.5f;
     float text_y = region_pos.y;
     ImGui::SetCursorPos(ImVec2(text_x, text_y));
@@ -182,14 +193,16 @@ void UI::DrawTimeRemaining(ImDrawList* draw_list,
 }
 
 void UI::DrawMaskBars(ImDrawList* draw_list,
-                      float scale_x, float scale_y)
+                      float scale,
+                      float offset_x,
+                      float offset_y)
 {
     float mask_width  = layout.maskBarWidth;
     float mask_height = layout.maskBarHeight;
-    ImVec2 left_top  = ToPixels(layout.progressBarStartX - mask_width, layout.progressBarY - mask_height, scale_x, scale_y);
-    ImVec2 left_bot  = ToPixels(layout.progressBarStartX, layout.progressBarY + mask_height, scale_x, scale_y);
-    ImVec2 right_top = ToPixels(layout.progressBarEndX, layout.progressBarY - mask_height, scale_x, scale_y);
-    ImVec2 right_bot = ToPixels(layout.progressBarEndX + mask_width, layout.progressBarY + mask_height, scale_x, scale_y);
+    ImVec2 left_top  = ToPixels(layout.progressBarStartX - mask_width, layout.progressBarY - mask_height, scale, offset_x, offset_y);
+    ImVec2 left_bot  = ToPixels(layout.progressBarStartX, layout.progressBarY + mask_height, scale, offset_x, offset_y);
+    ImVec2 right_top = ToPixels(layout.progressBarEndX, layout.progressBarY - mask_height, scale, offset_x, offset_y);
+    ImVec2 right_bot = ToPixels(layout.progressBarEndX + mask_width, layout.progressBarY + mask_height, scale, offset_x, offset_y);
     draw_list->AddRectFilled(left_top, left_bot, COLOR_BLACK);
     draw_list->AddRectFilled(right_top, right_bot, COLOR_BLACK);
 }

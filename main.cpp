@@ -13,6 +13,7 @@
 #include "modules/BluetoothAudioManager.h"
 #include "modules/Sprite.h"
 #include "modules/UI.h"
+#include <algorithm> // for std::min
 
 // Define an 8:3 virtual coordinate system (80×30)
 static const float VIRTUAL_WIDTH = 80.0f;
@@ -47,9 +48,11 @@ int main(int, char**)
     int window_width = DM.w;
     int window_height = DM.h;
 
-    // Compute scale factors so that our 80×30 virtual space fits exactly
-    float scale_x = static_cast<float>(window_width) / VIRTUAL_WIDTH;
-    float scale_y = static_cast<float>(window_height) / VIRTUAL_HEIGHT;
+    // Compute unified scale factor (preserving aspect ratio) and center offsets
+    float scale = std::min(static_cast<float>(window_width) / VIRTUAL_WIDTH,
+                           static_cast<float>(window_height) / VIRTUAL_HEIGHT);
+    float offset_x = (window_width - VIRTUAL_WIDTH * scale) * 0.5f;
+    float offset_y = (window_height - VIRTUAL_HEIGHT * scale) * 0.5f;
 
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
@@ -95,16 +98,17 @@ int main(int, char**)
     ImGuiIO& io = ImGui::GetIO();
     io.Fonts->AddFontDefault();
 
-    // Retro style: blueish text on black background
+    // Retro style: update to new color scheme (hex #6dfe95)
     ImGui::StyleColorsDark();
     ImGuiStyle& style = ImGui::GetStyle();
     style.WindowRounding = 0.0f;
     style.WindowPadding = ImVec2(0, 0);
     style.Colors[ImGuiCol_WindowBg]      = ImVec4(0, 0, 0, 1);
-    style.Colors[ImGuiCol_Text]          = ImVec4(171.0f/255.0f, 254.0f/255.0f, 233.0f/255.0f, 1.0f);
-    style.Colors[ImGuiCol_Border]        = ImVec4(171.0f/255.0f, 254.0f/255.0f, 233.0f/255.0f, 1.0f);
+    ImVec4 newColor = ImVec4(109/255.f, 254/255.f, 149/255.f, 1.0f);
+    style.Colors[ImGuiCol_Text]          = newColor;
+    style.Colors[ImGuiCol_Border]        = newColor;
     style.Colors[ImGuiCol_FrameBg]       = ImVec4(0, 0, 0, 1);
-    style.Colors[ImGuiCol_PlotHistogram] = ImVec4(171.0f/255.0f, 254.0f/255.0f, 233.0f/255.0f, 1.0f);
+    style.Colors[ImGuiCol_PlotHistogram] = newColor;
 
     ImVec4 clear_color = ImVec4(0, 0, 0, 1);
 
@@ -123,7 +127,7 @@ int main(int, char**)
 
     // Initialize Sprite and UI modules
     Sprite sprite;
-    sprite.Initialize(scale_x, scale_y);
+    sprite.Initialize(scale);
     UI ui;
     ui.Initialize();
 
@@ -190,7 +194,8 @@ int main(int, char**)
         ImGui::SetNextWindowSize(ImVec2(static_cast<float>(window_width), static_cast<float>(window_height)));
         ImGui::Begin("Car Head Unit", nullptr, wf);
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
-        ui.Render(draw_list, audioManager, sprite, scale_x, scale_y);
+        // Pass unified scale and offsets
+        ui.Render(draw_list, audioManager, sprite, scale, offset_x, offset_y);
         ImGui::End();
 
         ImGui::Render();
