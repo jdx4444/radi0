@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <string>
 
-// Define some colors (update to hex #6dfe95)
+// Define some colors (using the new hex #6dfe95)
 const ImU32 COLOR_GREEN = IM_COL32(109, 254, 149, 255);
 const ImU32 COLOR_BLACK = IM_COL32(0, 0, 0, 255);
 
@@ -171,7 +171,10 @@ void UI::DrawProgressLine(ImDrawList* draw_list,
 {
     ImVec2 p1 = ToPixels(layout.progressBarStartX, layout.progressBarY, scale, offset_x, offset_y);
     ImVec2 p2 = ToPixels(layout.progressBarEndX, layout.progressBarY, scale, offset_x, offset_y);
-    float line_thickness = 4.0f * scale;
+
+    // Use the virtual thickness from LayoutConfig so that at your baseline display (e.g. scale = 16)
+    // the progress line is exactly 4 px thick, but it scales proportionally on other displays.
+    float line_thickness = layout.progressBarThickness * scale;
     draw_list->AddLine(p1, p2, COLOR_GREEN, line_thickness);
 }
 

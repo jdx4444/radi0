@@ -24,6 +24,9 @@ struct LayoutConfig {
     float progressBarEndX   = 65.0f;
     float progressBarY      = 22.0f;
     float timeTextYOffset   = 1.0f;
+    // New: progress bar thickness (in virtual units) 
+    // (e.g., 0.25 * scale gives 4px when scale is 16)
+    float progressBarThickness = 0.25f;
     // Sprite Offsets
     float spriteXOffset = -1.0f;
     float spriteYOffset = -8.0f;
