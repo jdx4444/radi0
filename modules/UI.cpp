@@ -192,7 +192,7 @@ void UI::DrawVolumeSun(ImDrawList* draw_list,
     // At volume=0: position = (layout.sunX, layout.sunMinY)
     // At volume=1: position = (layout.sunX - deltaX, layout.sunMinY - deltaY)
     float deltaX = 10.0f;  // move left by 10 virtual units at full volume.
-    float deltaY = 16.0f;  // move up by 16 virtual units at full volume.
+    float deltaY = 14.0f;  // move up by 16 virtual units at full volume.
     float bx = layout.sunX - deltaX * t2;
     float by = layout.sunMinY - deltaY * t2;
 
@@ -209,8 +209,8 @@ void UI::DrawVolumeSun(ImDrawList* draw_list,
     // Draw triangular rays instead of lines.
     int numRays = 8;
     // Increase ray length relative to sun_radius_px.
-    float gap = 2.0f;  // 2-pixel gap between sun body and rays.
-    float rayLength = sun_radius_px * 1.2f; // Longer rays.
+    float gap = 4.0f;  // 2-pixel gap between sun body and rays.
+    float rayLength = sun_radius_px * 0.2f; // Shorter rays.
     float halfBase = 1.5f; // Half-width of the triangle's base in pixels.
 
     for (int i = 0; i < numRays; i++) {

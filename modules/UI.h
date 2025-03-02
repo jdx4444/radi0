@@ -27,7 +27,7 @@ struct LayoutConfig {
     // -----------------------
     float spriteXOffset     = 0.0f;
     float spriteYOffset     = -8.0f;
-    float spriteBaseY       = 28.0f;
+    float spriteBaseY       = 27.0f;
     float spriteXCorrection = 0.250f; // Shifts the car’s travel horizontally
 
     // -----------------------
