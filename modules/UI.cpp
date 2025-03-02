@@ -200,28 +200,32 @@ void UI::DrawVolumeSun(ImDrawList* draw_list,
     ImVec2 sun_center = ToPixels(bx, by, scale, offset_x, offset_y);
 
     // Make the sun's body slightly smaller.
-    float bodyScale = 0.5f;  // 70% of the default diameter.
+    float bodyScale = 0.25f;  // 70% of the default diameter.
     float sun_radius_px = (layout.sunDiameter * bodyScale * scale) * 0.5f;
 
     const ImU32 SUN_COLOR = COLOR_GREEN;
     draw_list->AddCircleFilled(sun_center, sun_radius_px, SUN_COLOR, 32);
 
-    // Instead of drawing triangles, draw lines for rays:
-    int numRays = 5;
-    float rayLength = sun_radius_px * 1.2f;  // Adjust this multiplier for length.
-    float rayLineWidth = 2.0f;              // Adjust this value for the ray's thickness.
+    //draw lines for the sun rays
+    int numRays = 8;
+    float gap = 4.0f;             // Gap (in pixels) between the sun's edge and the ray.
+    float rayLength = sun_radius_px * 1.0f;  // How much further the ray extends beyond the gap.
+    float rayLineWidth = 1.0f;     // Thickness of the ray.
     for (int i = 0; i < numRays; i++) {
         float angle = (3.1415926f * 2.0f / numRays) * i;
+        // Start the ray at the sun's edge plus the gap.
         ImVec2 rayStart(
-            sun_center.x + std::cos(angle) * sun_radius_px,
-            sun_center.y + std::sin(angle) * sun_radius_px
+            sun_center.x + std::cos(angle) * (sun_radius_px + gap),
+            sun_center.y + std::sin(angle) * (sun_radius_px + gap)
         );
+        // End the ray further out.
         ImVec2 rayEnd(
-            sun_center.x + std::cos(angle) * (sun_radius_px + rayLength),
-            sun_center.y + std::sin(angle) * (sun_radius_px + rayLength)
+            sun_center.x + std::cos(angle) * (sun_radius_px + gap + rayLength),
+            sun_center.y + std::sin(angle) * (sun_radius_px + gap + rayLength)
         );
         draw_list->AddLine(rayStart, rayEnd, SUN_COLOR, rayLineWidth);
     }
+
 }
 
 void UI::DrawSunMask(ImDrawList* draw_list,
