@@ -3,7 +3,7 @@
 #include <string>
 #include <cmath>
 
-// Same green color used elsewhere in the UI:
+// Define some colors (using the new hex #6dfe95)
 const ImU32 COLOR_GREEN = IM_COL32(109, 254, 149, 255);
 const ImU32 COLOR_BLACK = IM_COL32(0, 0, 0, 255);
 
@@ -12,7 +12,7 @@ UI::~UI() {}
 
 void UI::Initialize()
 {
-    // No special initialization needed
+    // No special initialization needed.
 }
 
 void UI::Render(ImDrawList* draw_list,
@@ -22,19 +22,19 @@ void UI::Render(ImDrawList* draw_list,
                 float offset_x,
                 float offset_y)
 {
-    // 1) Draw scrolling artist and track info
+    // 1) Draw scrolling artist and track info.
     DrawArtistAndTrackInfo(draw_list, audioManager, scale, offset_x, offset_y);
 
-    // 2) Draw the progress line (the "horizon") and time remaining
+    // 2) Draw the progress line (the "horizon") and time remaining.
     DrawProgressLine(draw_list, audioManager, scale, offset_x, offset_y);
     DrawTimeRemaining(draw_list, audioManager, scale, offset_x, offset_y);
-
-    // 3) Draw the sun that indicates volume, then mask it below the horizon
+    
+    // 3) Draw the sun that indicates volume, then mask it below the horizon.
     DrawVolumeSun(draw_list, audioManager, scale, offset_x, offset_y);
     DrawSunMask(draw_list, scale, offset_x, offset_y);
 
-    // 4) Draw the car sprite traveling along the progress bar
-    constexpr float spriteVirtualWidth = 19 * 0.16f; // ~3.04 virtual units
+    // 4) Draw the car sprite traveling along the progress bar.
+    constexpr float spriteVirtualWidth = 19 * 0.16f; // Approximately 3.04 virtual units.
     float effectiveStartX = layout.progressBarStartX - spriteVirtualWidth + layout.spriteXCorrection;
     float effectiveEndX   = layout.progressBarEndX + layout.spriteXCorrection;
     sprite.UpdatePosition(audioManager.GetPlaybackFraction(),
@@ -45,13 +45,13 @@ void UI::Render(ImDrawList* draw_list,
                           layout.spriteBaseY);
     sprite.Draw(draw_list, COLOR_GREEN);
 
-    // 5) Draw the mask bars to conceal sprite edges if needed
+    // 5) Draw mask bars to conceal sprite edges if needed.
     DrawMaskBars(draw_list, scale, offset_x, offset_y);
 }
 
 void UI::Cleanup()
 {
-    // No cleanup needed
+    // No cleanup needed.
 }
 
 void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
@@ -60,7 +60,7 @@ void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
                                 float offset_x,
                                 float offset_y)
 {
-    // Fetch metadata from BluetoothAudioManager
+    // Fetch metadata from BluetoothAudioManager.
     std::string artist_name = audioManager.GetCurrentTrackArtist();
     std::string track_name  = audioManager.GetCurrentTrackTitle();
     if (artist_name.empty()) artist_name = "Unknown Artist";
@@ -136,9 +136,9 @@ void UI::DrawTimeRemaining(ImDrawList* draw_list,
                            float offset_y)
 {
     float region_width = layout.progressBarEndX - layout.progressBarStartX;
-    ImVec2 region_pos = ToPixels(layout.progressBarStartX, layout.progressBarY + layout.timeTextYOffset,
+    ImVec2 region_pos = ToPixels(layout.progressBarStartX,
+                                 layout.progressBarY + layout.timeTextYOffset,
                                  scale, offset_x, offset_y);
-
     std::string time_str = audioManager.GetTimeRemaining();
     ImVec2 text_size = ImGui::CalcTextSize(time_str.c_str());
     float region_width_pixels = region_width * scale;
@@ -153,7 +153,7 @@ void UI::DrawMaskBars(ImDrawList* draw_list,
                       float offset_x,
                       float offset_y)
 {
-    // Left and right black rectangles that hide sprite edges
+    // Left and right black rectangles that hide sprite edges.
     float mask_width  = 5.0f;
     float mask_height = 3.0f;
 
@@ -169,29 +169,62 @@ void UI::DrawMaskBars(ImDrawList* draw_list,
     ImVec2 right_bot = ToPixels(layout.progressBarEndX + mask_width,
                                 layout.progressBarY + mask_height,
                                 scale, offset_x, offset_y);
-
     draw_list->AddRectFilled(left_top, left_bot, COLOR_BLACK);
     draw_list->AddRectFilled(right_top, right_bot, COLOR_BLACK);
 }
 
-// DrawVolumeSun: Renders a sun that moves from below the horizon (volume=0)
-// to near the top of the screen (volume=128).
 void UI::DrawVolumeSun(ImDrawList* draw_list,
                        BluetoothAudioManager& audioManager,
                        float scale,
                        float offset_x,
                        float offset_y)
 {
-    // Fraction of volume from 0.0 to 1.0
+    // Fraction of volume from 0.0 to 1.0.
     float volumeFrac = static_cast<float>(audioManager.GetVolume()) / 128.0f;
 
-    // Compute sun center in virtual coordinates
+    // Compute sun center in virtual coordinates.
     float sunX_v = layout.sunX;
-    // Interpolate Y from sunMinY (below horizon) to sunMaxY (top)
+    // Interpolate Y from sunMinY (at volume 0) to sunMaxY (at volume 128).
     float sunY_v = layout.sunMinY - volumeFrac * (layout.sunMinY - layout.sunMaxY);
 
-    // Convert to pixels
+    // Convert center to pixels.
     ImVec2 sun_center = ToPixels(sunX_v, sunY_v, scale, offset_x, offset_y);
     float sun_radius_px = (layout.sunDiameter * scale) * 0.5f;
 
-    // Use
+    // Use the same green color.
+    const ImU32 SUN_COLOR = COLOR_GREEN;
+
+    // Draw the sun's filled circle.
+    draw_list->AddCircleFilled(sun_center, sun_radius_px, SUN_COLOR, 32);
+
+    // Draw sun rays: 8 rays evenly distributed.
+    int numRays = 8;
+    float rayLength = sun_radius_px * 0.5f;  // length of rays.
+    for (int i = 0; i < numRays; i++) {
+        float angle = (3.1415926f * 2.0f / numRays) * i;
+        ImVec2 rayStart(
+            sun_center.x + std::cos(angle) * sun_radius_px,
+            sun_center.y + std::sin(angle) * sun_radius_px
+        );
+        ImVec2 rayEnd(
+            sun_center.x + std::cos(angle) * (sun_radius_px + rayLength),
+            sun_center.y + std::sin(angle) * (sun_radius_px + rayLength)
+        );
+        draw_list->AddLine(rayStart, rayEnd, SUN_COLOR, 1.0f);
+    }
+}
+
+void UI::DrawSunMask(ImDrawList* draw_list,
+                     float scale,
+                     float offset_x,
+                     float offset_y)
+{
+    // Cover the region from sunMaskTop to sunMaskBottom (virtual coordinates) across the full width.
+    float left   = 0.0f;
+    float right  = 80.0f;
+    float top    = layout.sunMaskTop;
+    float bottom = layout.sunMaskBottom;
+    ImVec2 p1 = ToPixels(left, top, scale, offset_x, offset_y);
+    ImVec2 p2 = ToPixels(right, bottom, scale, offset_x, offset_y);
+    draw_list->AddRectFilled(p1, p2, COLOR_BLACK);
+}
