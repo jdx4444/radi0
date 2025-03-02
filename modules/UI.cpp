@@ -34,7 +34,7 @@ void UI::Render(ImDrawList* draw_list,
     DrawSunMask(draw_list, scale, offset_x, offset_y);
 
     // 4) Draw the car sprite traveling along the progress bar.
-    constexpr float spriteVirtualWidth = 19 * 0.16f; // Approximately 3.04 virtual units.
+    constexpr float spriteVirtualWidth = 19 * 0.16f; // ~3.04 virtual units
     float effectiveStartX = layout.progressBarStartX - spriteVirtualWidth + layout.spriteXCorrection;
     float effectiveEndX   = layout.progressBarEndX + layout.spriteXCorrection;
     sprite.UpdatePosition(audioManager.GetPlaybackFraction(),
@@ -173,33 +173,66 @@ void UI::DrawMaskBars(ImDrawList* draw_list,
     draw_list->AddRectFilled(right_top, right_bot, COLOR_BLACK);
 }
 
+/**
+ * DrawVolumeSun:
+ * Uses a quadratic Bézier curve for an arcing motion from volume=0 to volume=128.
+ * Also makes the sun body slightly smaller and the rays a bit longer.
+ */
 void UI::DrawVolumeSun(ImDrawList* draw_list,
                        BluetoothAudioManager& audioManager,
                        float scale,
                        float offset_x,
                        float offset_y)
 {
-    // Fraction of volume from 0.0 to 1.0.
-    float volumeFrac = static_cast<float>(audioManager.GetVolume()) / 128.0f;
+    // Volume fraction (0.0 to 1.0)
+    float t = static_cast<float>(audioManager.GetVolume()) / 128.0f;
 
-    // Compute sun center in virtual coordinates.
-    float sunX_v = layout.sunX;
-    // Interpolate Y from sunMinY (at volume 0) to sunMaxY (at volume 128).
-    float sunY_v = layout.sunMinY - volumeFrac * (layout.sunMinY - layout.sunMaxY);
+    // ---------------------------
+    // 1. Define our Bézier points in virtual coordinates
+    // ---------------------------
 
-    // Convert center to pixels.
-    ImVec2 sun_center = ToPixels(sunX_v, sunY_v, scale, offset_x, offset_y);
-    float sun_radius_px = (layout.sunDiameter * scale) * 0.5f;
+    // Start (P0): at 0 volume (just below horizon)
+    ImVec2 P0 = ImVec2(layout.sunX, layout.sunMinY);
 
-    // Use the same green color.
+    // End (P2): shift it left by ~5 units, lower by ~2 units
+    ImVec2 P2 = ImVec2(layout.sunX - 5.0f, layout.sunMinY - 2.0f);
+
+    // Control point (P1): near midpoint, shifted up by ~3 units for an arc
+    ImVec2 mid = ImVec2((P0.x + P2.x) * 0.5f, (P0.y + P2.y) * 0.5f);
+    ImVec2 P1 = ImVec2(mid.x, mid.y - 3.0f);
+
+    // ---------------------------
+    // 2. Compute the Bézier position at fraction t
+    // ---------------------------
+    float u  = 1.0f - t;
+    float tt = t * t;
+    float uu = u * u;
+    float two_u_t = 2.0f * u * t;
+
+    float bx = (uu * P0.x) + (two_u_t * P1.x) + (tt * P2.x);
+    float by = (uu * P0.y) + (two_u_t * P1.y) + (tt * P2.y);
+
+    // Convert to pixels
+    ImVec2 sun_center = ToPixels(bx, by, scale, offset_x, offset_y);
+
+    // ---------------------------
+    // 3. Draw the sun body (smaller circle)
+    // ---------------------------
+    // bodyScale < 1.0 => smaller circle
+    float bodyScale = 0.7f; 
+    float sun_radius_px = (layout.sunDiameter * bodyScale * scale) * 0.5f;
+
     const ImU32 SUN_COLOR = COLOR_GREEN;
-
-    // Draw the sun's filled circle.
     draw_list->AddCircleFilled(sun_center, sun_radius_px, SUN_COLOR, 32);
 
-    // Draw sun rays: 8 rays evenly distributed.
+    // ---------------------------
+    // 4. Draw the rays (slightly longer)
+    // ---------------------------
     int numRays = 8;
-    float rayLength = sun_radius_px * 0.5f;  // length of rays.
+    // Increase rayLength multiplier => longer rays
+    float rayMultiplier = 0.8f; 
+    float rayLength = sun_radius_px * rayMultiplier;
+
     for (int i = 0; i < numRays; i++) {
         float angle = (3.1415926f * 2.0f / numRays) * i;
         ImVec2 rayStart(
@@ -219,7 +252,7 @@ void UI::DrawSunMask(ImDrawList* draw_list,
                      float offset_x,
                      float offset_y)
 {
-    // Cover the region from sunMaskTop to sunMaskBottom (virtual coordinates) across the full width.
+    // Cover the region from sunMaskTop to sunMaskBottom (virtual coords) across the full width.
     float left   = 0.0f;
     float right  = 80.0f;
     float top    = layout.sunMaskTop;
