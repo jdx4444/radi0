@@ -1,5 +1,3 @@
-# Makefile
-
 CXX = g++
 CXXFLAGS = -std=c++17 -I. -Iimgui -Ibackends -Imodules -DGL_SILENCE_DEPRECATION \
            -I/usr/include/SDL2 -I/usr/include/dbus-1.0 -I/usr/lib/aarch64-linux-gnu/dbus-1.0/include
@@ -18,12 +16,19 @@ SOURCES = main.cpp \
 
 OUTPUT = radioBT
 
-all: $(OUTPUT)
+all: deps $(OUTPUT)
 
 $(OUTPUT): $(SOURCES)
 	$(CXX) $(CXXFLAGS) -v $(SOURCES) $(LDFLAGS) -o $(OUTPUT)
 
+deps:
+	@echo "Checking for required dependencies..."
+	@dpkg -s libsdl2-dev libdbus-1-dev > /dev/null 2>&1 || { \
+	    echo "Missing dependencies. Installing..."; \
+	    sudo apt update && sudo apt install -y libsdl2-dev libdbus-1-dev; \
+	}
+
 clean:
 	rm -f $(OUTPUT)
 
-.PHONY: all clean
+.PHONY: all clean deps

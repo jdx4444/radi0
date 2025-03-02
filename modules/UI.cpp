@@ -30,10 +30,11 @@ void UI::Render(ImDrawList* draw_list,
     DrawProgressLine(draw_list, audioManager, scale, offset_x, offset_y);
     DrawTimeRemaining(draw_list, audioManager, scale, offset_x, offset_y);
 
-    // 4) Update and draw the car sprite above the progress bar
+    // 4) Update and draw the car sprite above the progress bar.
+    // Adjust the effective start and end positions using spriteXCorrection.
     constexpr float spriteVirtualWidth = 19 * 0.16f; // Approximately 3.04 virtual units
-    float effectiveStartX = layout.progressBarStartX - spriteVirtualWidth;
-    float effectiveEndX   = layout.progressBarEndX;
+    float effectiveStartX = layout.progressBarStartX - spriteVirtualWidth + layout.spriteXCorrection;
+    float effectiveEndX   = layout.progressBarEndX + layout.spriteXCorrection;
     sprite.UpdatePosition(audioManager.GetPlaybackFraction(),
                           effectiveStartX, effectiveEndX,
                           scale, offset_x, offset_y,
@@ -64,34 +65,50 @@ void UI::DrawVolumeBar(ImDrawList* draw_list,
     ImGui::TextUnformatted("Vol:");
     ImVec2 text_size = ImGui::CalcTextSize("Vol:");
 
-    // Compute the volume bar start and end positions in virtual coordinates.
-    float bar_virtual_start = label_virtual_x + layout.volumeBarOffset;
-    float bar_virtual_end   = bar_virtual_start + layout.volumeBarWidth;
-
-    // Convert to pixels.
+    // Instead of using a fixed volumeBarOffset, we now add a small gap (volumeBarTextGap)
+    // to separate the label from the bar.
+    float gap_pixels = layout.volumeBarTextGap * scale;
+    // Compute the virtual starting position for the volume bar based on the label's end.
+    float bar_virtual_start = ((label_pos.x + text_size.x + gap_pixels) - offset_x) / scale;
     float bar_x_start_px = bar_virtual_start * scale + offset_x;
-    float bar_x_end_px   = bar_virtual_end   * scale + offset_x;
-    float bar_y_px       = label_pos.y;
-    float bar_height_px  = layout.volumeBarHeight * scale;
-
-    // Draw the empty (black) bar.
-    ImVec2 bar_pos(bar_x_start_px, bar_y_px);
-    ImVec2 bar_end(bar_x_end_px, bar_y_px + bar_height_px);
-    draw_list->AddRectFilled(bar_pos, bar_end, COLOR_BLACK);
-
-    // Draw the filled portion based on volume (0-128)
-    float volume_fraction = static_cast<float>(audioManager.GetVolume()) / 128.0f;
-    volume_fraction = std::clamp(volume_fraction, 0.0f, 1.0f);
-    float fill_x = bar_x_start_px + (bar_x_end_px - bar_x_start_px) * volume_fraction;
-    draw_list->AddRectFilled(bar_pos, ImVec2(fill_x, bar_end.y), COLOR_GREEN);
-    draw_list->AddRect(bar_pos, bar_end, COLOR_GREEN);
-
-    // Make the bar interactive.
-    ImGui::SetCursorPos(bar_pos);
-    ImGui::InvisibleButton("volume_bar", ImVec2(bar_x_end_px - bar_x_start_px, bar_height_px));
+    // Total width (in pixels) remains as defined in the layout.
+    float total_bar_width_px = layout.volumeBarWidth * scale;
+    
+    // Draw the segmented volume bar:
+    int cellCount = layout.volumeCellCount;
+    float gap_between_cells = layout.volumeCellGap * scale; // gap in pixels between cells
+    // Calculate each cell's width in pixels.
+    float cell_width = (total_bar_width_px - (cellCount - 1) * gap_between_cells) / cellCount;
+    float bar_y_px = label_pos.y; // use same vertical position as label
+    float bar_height_px = layout.volumeBarHeight * scale;
+    
+    // Determine how many cells should be filled based on the volume (0-128).
+    int volume = audioManager.GetVolume();
+    int filled_cells = static_cast<int>((volume / 128.0f) * cellCount);
+    
+    // Draw each cell (filled or just outlined).
+    for (int i = 0; i < cellCount; ++i) {
+        float cell_x = bar_x_start_px + i * (cell_width + gap_between_cells);
+        ImVec2 cell_top_left(cell_x, bar_y_px);
+        ImVec2 cell_bottom_right(cell_x + cell_width, bar_y_px + bar_height_px);
+        
+        if (i < filled_cells) {
+            // Draw filled cell.
+            draw_list->AddRectFilled(cell_top_left, cell_bottom_right, COLOR_GREEN);
+        } else {
+            // Draw an outlined cell.
+            draw_list->AddRect(cell_top_left, cell_bottom_right, COLOR_GREEN);
+        }
+    }
+    
+    // Optionally, you could also make the volume bar interactive by using an invisible button,
+    // similar to the previous implementation.
+    ImGui::SetCursorPos(ImVec2(bar_x_start_px, bar_y_px));
+    ImGui::InvisibleButton("volume_bar", ImVec2(total_bar_width_px, bar_height_px));
     if (ImGui::IsItemActive()) {
         float mouse_x = ImGui::GetIO().MousePos.x;
-        float new_frac = (mouse_x - bar_x_start_px) / (bar_x_end_px - bar_x_start_px);
+        // Calculate fraction based on mouse position relative to the bar.
+        float new_frac = (mouse_x - bar_x_start_px) / total_bar_width_px;
         new_frac = std::clamp(new_frac, 0.0f, 1.0f);
         int new_volume = static_cast<int>(new_frac * 128.0f);
         audioManager.SetVolume(new_volume);
@@ -172,8 +189,7 @@ void UI::DrawProgressLine(ImDrawList* draw_list,
     ImVec2 p1 = ToPixels(layout.progressBarStartX, layout.progressBarY, scale, offset_x, offset_y);
     ImVec2 p2 = ToPixels(layout.progressBarEndX, layout.progressBarY, scale, offset_x, offset_y);
 
-    // Use the virtual thickness from LayoutConfig so that at your baseline display (e.g. scale = 16)
-    // the progress line is exactly 4 px thick, but it scales proportionally on other displays.
+    // The progress line thickness is determined by a virtual value scaled up.
     float line_thickness = layout.progressBarThickness * scale;
     draw_list->AddLine(p1, p2, COLOR_GREEN, line_thickness);
 }
