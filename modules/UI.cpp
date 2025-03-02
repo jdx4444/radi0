@@ -200,37 +200,27 @@ void UI::DrawVolumeSun(ImDrawList* draw_list,
     ImVec2 sun_center = ToPixels(bx, by, scale, offset_x, offset_y);
 
     // Make the sun's body slightly smaller.
-    float bodyScale = 0.7f;  // 70% of the default diameter.
+    float bodyScale = 0.5f;  // 70% of the default diameter.
     float sun_radius_px = (layout.sunDiameter * bodyScale * scale) * 0.5f;
 
     const ImU32 SUN_COLOR = COLOR_GREEN;
     draw_list->AddCircleFilled(sun_center, sun_radius_px, SUN_COLOR, 32);
 
-    // Draw triangular rays instead of lines.
-    int numRays = 8;
-    // Increase ray length relative to sun_radius_px.
-    float gap = 4.0f;  // 2-pixel gap between sun body and rays.
-    float rayLength = sun_radius_px * 0.2f; // Shorter rays.
-    float halfBase = 1.5f; // Half-width of the triangle's base in pixels.
-
+    // Instead of drawing triangles, draw lines for rays:
+    int numRays = 5;
+    float rayLength = sun_radius_px * 1.2f;  // Adjust this multiplier for length.
+    float rayLineWidth = 2.0f;              // Adjust this value for the ray's thickness.
     for (int i = 0; i < numRays; i++) {
         float angle = (3.1415926f * 2.0f / numRays) * i;
-        // Unit direction vector.
-        float cosA = std::cos(angle);
-        float sinA = std::sin(angle);
-        // Base center is on a circle just outside the sun's body.
-        ImVec2 baseCenter = ImVec2(sun_center.x + cosA * (sun_radius_px + gap),
-                                   sun_center.y + sinA * (sun_radius_px + gap));
-        // Tip of the ray is further out.
-        ImVec2 tip = ImVec2(sun_center.x + cosA * (sun_radius_px + gap + rayLength),
-                            sun_center.y + sinA * (sun_radius_px + gap + rayLength));
-        // Perpendicular vector for the base's width.
-        ImVec2 perp = ImVec2(-sinA, cosA);
-        ImVec2 baseLeft = ImVec2(baseCenter.x - perp.x * halfBase, baseCenter.y - perp.y * halfBase);
-        ImVec2 baseRight = ImVec2(baseCenter.x + perp.x * halfBase, baseCenter.y + perp.y * halfBase);
-
-        // Draw the filled triangle representing the ray.
-        draw_list->AddTriangleFilled(tip, baseLeft, baseRight, SUN_COLOR);
+        ImVec2 rayStart(
+            sun_center.x + std::cos(angle) * sun_radius_px,
+            sun_center.y + std::sin(angle) * sun_radius_px
+        );
+        ImVec2 rayEnd(
+            sun_center.x + std::cos(angle) * (sun_radius_px + rayLength),
+            sun_center.y + std::sin(angle) * (sun_radius_px + rayLength)
+        );
+        draw_list->AddLine(rayStart, rayEnd, SUN_COLOR, rayLineWidth);
     }
 }
 
