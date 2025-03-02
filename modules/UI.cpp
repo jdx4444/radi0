@@ -34,7 +34,7 @@ void UI::Render(ImDrawList* draw_list,
     DrawSunMask(draw_list, scale, offset_x, offset_y);
 
     // 4) Draw the car sprite traveling along the progress bar.
-    constexpr float spriteVirtualWidth = 19 * 0.16f; // ~3.04 virtual units
+    constexpr float spriteVirtualWidth = 19 * 0.16f; // ~3.04 virtual units.
     float effectiveStartX = layout.progressBarStartX - spriteVirtualWidth + layout.spriteXCorrection;
     float effectiveEndX   = layout.progressBarEndX + layout.spriteXCorrection;
     sprite.UpdatePosition(audioManager.GetPlaybackFraction(),
@@ -175,8 +175,8 @@ void UI::DrawMaskBars(ImDrawList* draw_list,
 
 /**
  * DrawVolumeSun:
- * Uses a quadratic Bézier curve for an arcing motion from volume=0 to volume=128.
- * Also makes the sun body slightly smaller and the rays a bit longer.
+ * - Computes the sun's position using an easing function (t²) so that at full volume the sun reaches its peak.
+ * - Draws a smaller sun body (circle) and, instead of lines, draws small triangles as rays.
  */
 void UI::DrawVolumeSun(ImDrawList* draw_list,
                        BluetoothAudioManager& audioManager,
@@ -184,66 +184,53 @@ void UI::DrawVolumeSun(ImDrawList* draw_list,
                        float offset_x,
                        float offset_y)
 {
-    // Volume fraction (0.0 to 1.0)
+    // Use t = (volume/128) and then t² for easing.
     float t = static_cast<float>(audioManager.GetVolume()) / 128.0f;
+    float t2 = t * t;
 
-    // ---------------------------
-    // 1. Define our Bézier points in virtual coordinates
-    // ---------------------------
+    // Define sun position in virtual coords using an easing function.
+    // At volume=0: position = (layout.sunX, layout.sunMinY)
+    // At volume=1: position = (layout.sunX - deltaX, layout.sunMinY - deltaY)
+    float deltaX = 10.0f;  // move left by 10 virtual units at full volume.
+    float deltaY = 16.0f;  // move up by 16 virtual units at full volume.
+    float bx = layout.sunX - deltaX * t2;
+    float by = layout.sunMinY - deltaY * t2;
 
-    // Start (P0): at 0 volume (just below horizon)
-    ImVec2 P0 = ImVec2(layout.sunX, layout.sunMinY);
-
-    // End (P2): shift it left by ~5 units, lower by ~2 units
-    ImVec2 P2 = ImVec2(layout.sunX - 5.0f, layout.sunMinY - 2.0f);
-
-    // Control point (P1): near midpoint, shifted up by ~3 units for an arc
-    ImVec2 mid = ImVec2((P0.x + P2.x) * 0.5f, (P0.y + P2.y) * 0.5f);
-    ImVec2 P1 = ImVec2(mid.x, mid.y - 3.0f);
-
-    // ---------------------------
-    // 2. Compute the Bézier position at fraction t
-    // ---------------------------
-    float u  = 1.0f - t;
-    float tt = t * t;
-    float uu = u * u;
-    float two_u_t = 2.0f * u * t;
-
-    float bx = (uu * P0.x) + (two_u_t * P1.x) + (tt * P2.x);
-    float by = (uu * P0.y) + (two_u_t * P1.y) + (tt * P2.y);
-
-    // Convert to pixels
+    // Convert the computed position to pixels.
     ImVec2 sun_center = ToPixels(bx, by, scale, offset_x, offset_y);
 
-    // ---------------------------
-    // 3. Draw the sun body (smaller circle)
-    // ---------------------------
-    // bodyScale < 1.0 => smaller circle
-    float bodyScale = 0.7f; 
+    // Make the sun's body slightly smaller.
+    float bodyScale = 0.7f;  // 70% of the default diameter.
     float sun_radius_px = (layout.sunDiameter * bodyScale * scale) * 0.5f;
 
     const ImU32 SUN_COLOR = COLOR_GREEN;
     draw_list->AddCircleFilled(sun_center, sun_radius_px, SUN_COLOR, 32);
 
-    // ---------------------------
-    // 4. Draw the rays (slightly longer)
-    // ---------------------------
+    // Draw triangular rays instead of lines.
     int numRays = 8;
-    // Increase rayLength multiplier => longer rays
-    float rayMultiplier = 0.8f; 
-    float rayLength = sun_radius_px * rayMultiplier;
+    // Increase ray length relative to sun_radius_px.
+    float gap = 2.0f;  // 2-pixel gap between sun body and rays.
+    float rayLength = sun_radius_px * 1.2f; // Longer rays.
+    float halfBase = 1.5f; // Half-width of the triangle's base in pixels.
 
     for (int i = 0; i < numRays; i++) {
         float angle = (3.1415926f * 2.0f / numRays) * i;
-        ImVec2 rayStart(
-            sun_center.x + std::cos(angle) * sun_radius_px,
-            sun_center.y + std::sin(angle) * sun_radius_px
-        );
-        ImVec2 rayEnd(
-            sun_center.x + std::cos(angle) * (sun_radius_px + rayLength),
-            sun_center.y + std::sin(angle) * (sun_radius_px + rayLength)
-        );
-        draw_list->AddLine(rayStart, rayEnd, SUN_COLOR, 1.0f);
+        // Unit direction vector.
+        float cosA = std::cos(angle);
+        float sinA = std::sin(angle);
+        // Base center is on a circle just outside the sun's body.
+        ImVec2 baseCenter = ImVec2(sun_center.x + cosA * (sun_radius_px + gap),
+                                   sun_center.y + sinA * (sun_radius_px + gap));
+        // Tip of the ray is further out.
+        ImVec2 tip = ImVec2(sun_center.x + cosA * (sun_radius_px + gap + rayLength),
+                            sun_center.y + sinA * (sun_radius_px + gap + rayLength));
+        // Perpendicular vector for the base's width.
+        ImVec2 perp = ImVec2(-sinA, cosA);
+        ImVec2 baseLeft = ImVec2(baseCenter.x - perp.x * halfBase, baseCenter.y - perp.y * halfBase);
+        ImVec2 baseRight = ImVec2(baseCenter.x + perp.x * halfBase, baseCenter.y + perp.y * halfBase);
+
+        // Draw the filled triangle representing the ray.
+        draw_list->AddTriangleFilled(tip, baseLeft, baseRight, SUN_COLOR);
     }
 }
 
@@ -252,7 +239,7 @@ void UI::DrawSunMask(ImDrawList* draw_list,
                      float offset_x,
                      float offset_y)
 {
-    // Cover the region from sunMaskTop to sunMaskBottom (virtual coords) across the full width.
+    // Cover the region from sunMaskTop to sunMaskBottom (virtual coordinates) across the full width.
     float left   = 0.0f;
     float right  = 80.0f;
     float top    = layout.sunMaskTop;
