@@ -26,25 +26,28 @@ void UI::Render(ImDrawList* draw_list,
     DrawProgressLine(draw_list, audioManager, scale, offset_x, offset_y);
     DrawTimeRemaining(draw_list, audioManager, scale, offset_x, offset_y);
     
-    // 2) Draw the volume indicator.
-    // For volume >= 64, draw the sun.
-    // For volume < 64, draw a crescent moon.
+    // 2) Draw the volume indicator (sun for vol>=64, crescent moon for vol<64).
     float vol = static_cast<float>(audioManager.GetVolume());
+    float tau = 0.125f; // threshold for clamping (approx. 2/16 of the range)
     if (vol >= 64.0f) {
-        // Compute easing for the sun.
-        float t = (vol - 64.0f) / 64.0f;
-        float t2 = t * t;
-        float deltaX = 10.0f;  // move left by 10 virtual units at full volume.
-        float bx = layout.sunX - deltaX * t2;
-        float by = layout.sunMinY - (layout.sunMinY - layout.sunMaxY) * t2;
+        // Sun branch.
+        float u = (vol - 64.0f) / 64.0f; // u in [0,1]
+        float bx = layout.sunX - 10.0f * u * u; // horizontal mapping remains
+        float by;
+        if (u < tau) {
+            by = layout.sunMinY; // clamped to horizon
+        } else {
+            float u_prime = (u - tau) / (1.0f - tau);
+            by = layout.sunMinY - (layout.sunMinY - layout.sunMaxY) * (u_prime * u_prime);
+        }
         ImVec2 sun_center = ToPixels(bx, by, scale, offset_x, offset_y);
-        float bodyScale = 0.25f;  // as provided.
+        float bodyScale = 0.25f;  // as provided for sun
         float sun_radius_px = (layout.sunDiameter * bodyScale * scale) * 0.5f;
         draw_list->AddCircleFilled(sun_center, sun_radius_px, COLOR_GREEN, 32);
         int numRays = 8;
-        float gap = 4.0f;             // gap in pixels between sun edge and ray.
-        float rayLength = sun_radius_px * 1.0f; // ray extends 1.0x beyond gap.
-        float rayLineWidth = 1.0f;     // ray thickness.
+        float gap = 4.0f;
+        float rayLength = sun_radius_px * 1.0f;
+        float rayLineWidth = 1.0f;
         for (int i = 0; i < numRays; i++) {
             float angle = (3.1415926f * 2.0f / numRays) * i;
             ImVec2 rayStart(
@@ -58,27 +61,30 @@ void UI::Render(ImDrawList* draw_list,
             draw_list->AddLine(rayStart, rayEnd, COLOR_GREEN, rayLineWidth);
         }
     } else {
-        // Draw a crescent moon.
-        // Compute easing for the moon.
-        float t = (64.0f - vol) / 64.0f;
-        float t2 = t * t;
-        float deltaX = 10.0f;
-        float bx = layout.sunX - deltaX * t2;
-        float by = layout.sunMinY - (layout.sunMinY - layout.sunMaxY) * t2;
-        // Mirror the X coordinate around the center (assumed 40 virtual units).
+        // Moon branch.
+        float u = (64.0f - vol) / 64.0f; // u in [0,1]
+        float bx = layout.sunX - 10.0f * u * u;
+        float by;
+        if (u < tau) {
+            by = layout.sunMinY; // clamped to horizon
+        } else {
+            float u_prime = (u - tau) / (1.0f - tau);
+            // Define moonMaxY as the mirror of sunMaxY relative to sunMinY.
+            float moonMaxY = layout.sunMinY + (layout.sunMinY - layout.sunMaxY);
+            by = layout.sunMinY + (moonMaxY - layout.sunMinY) * (u_prime * u_prime);
+        }
+        // Mirror the horizontal position about 40 virtual units.
         float bx_moon = 2 * 40.0f - bx;
         ImVec2 moon_center = ToPixels(bx_moon, by, scale, offset_x, offset_y);
-        float bodyScale = 0.25f;
+        // Make the moon 3x larger than its previous size.
+        float bodyScale = 0.75f;
         float moon_radius_px = (layout.sunDiameter * bodyScale * scale) * 0.5f;
-        // Draw the full moon.
         draw_list->AddCircleFilled(moon_center, moon_radius_px, COLOR_GREEN, 32);
-        // Draw an offset black circle to "cut out" a crescent.
-        // Adjust the offset vector to shape the crescent as desired.
-        ImVec2 offsetVec = ImVec2(moon_radius_px * 0.5f, -moon_radius_px * 0.2f);
+        // Draw a crescent: overlay an offset black circle.
+        ImVec2 offsetVec = ImVec2(moon_radius_px * 0.4f, -moon_radius_px * 0.2f);
         ImVec2 cutoutCenter = ImVec2(moon_center.x + offsetVec.x, moon_center.y + offsetVec.y);
         draw_list->AddCircleFilled(cutoutCenter, moon_radius_px, COLOR_BLACK, 32);
     }
-    
     DrawSunMask(draw_list, scale, offset_x, offset_y);
 
     // 3) Draw the car sprite and its side mask bars.
@@ -105,11 +111,11 @@ void UI::Cleanup()
 
 /**
  * DrawArtistAndTrackInfo:
- * Uses explicit layout values for the text regions defined in LayoutConfig.
+ * Uses explicit layout values from LayoutConfig.
  * The artist text is drawn in the region starting at (artistTextX, artistTextY)
  * with a maximum width of artistTextWidth.
  * The track text is drawn in the region starting at (trackTextX, trackTextY)
- * with a maximum width of trackTextWidth.
+ * with a maximum width of trackTextWidth, right-aligned.
  * If the text exceeds the available width, it scrolls.
  */
 void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
@@ -145,10 +151,10 @@ void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
     draw_list->PopClipRect();
     ImGui::SetWindowFontScale(1.0f);
 
-    // Track text region (right side, right-aligned).
+    // Track text region (right-aligned).
     ImVec2 trackPos = ToPixels(layout.trackTextX, layout.trackTextY, scale, offset_x, offset_y);
     float trackRegionWidth_px = layout.trackTextWidth * scale;
-    ImGui::SetWindowFontScale(1.6f);  // same as artist.
+    ImGui::SetWindowFontScale(1.6f);
     ImVec2 trackTextSize = ImGui::CalcTextSize(track_name.c_str());
     static float track_scroll_offset = 0.0f;
     if (trackTextSize.x > trackRegionWidth_px) {
@@ -161,7 +167,7 @@ void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
     ImVec2 trackClipMin = trackPos;
     ImVec2 trackClipMax = ImVec2(trackPos.x + trackRegionWidth_px, trackPos.y + trackTextSize.y);
     draw_list->PushClipRect(trackClipMin, trackClipMax, true);
-    // Right-align: shift cursor so that text's right edge is flush with the region's right edge.
+    // For right alignment, shift the cursor so that the text’s right edge is flush with the region’s right edge.
     float textOffset = trackTextSize.x - trackRegionWidth_px;
     if (textOffset < 0) textOffset = 0;
     ImGui::SetCursorPos(ImVec2(trackPos.x - track_scroll_offset - textOffset, trackPos.y));
@@ -231,21 +237,26 @@ void UI::DrawVolumeSun(ImDrawList* draw_list,
                        float offset_y)
 {
     float vol = static_cast<float>(audioManager.GetVolume());
+    float tau = 0.125f; // threshold (approx. 2 steps of 16)
     if (vol >= 64.0f) {
-        // Draw the sun.
-        float t = (vol - 64.0f) / 64.0f;
-        float t2 = t * t;
-        float deltaX = 10.0f;  // move left by 10 virtual units at full volume.
-        float bx = layout.sunX - deltaX * t2;
-        float by = layout.sunMinY - (layout.sunMinY - layout.sunMaxY) * t2;
+        // Sun branch.
+        float u = (vol - 64.0f) / 64.0f; // u in [0,1]
+        float bx = layout.sunX - 10.0f * u * u;
+        float by;
+        if (u < tau) {
+            by = layout.sunMinY;
+        } else {
+            float u_prime = (u - tau) / (1.0f - tau);
+            by = layout.sunMinY - (layout.sunMinY - layout.sunMaxY) * (u_prime * u_prime);
+        }
         ImVec2 sun_center = ToPixels(bx, by, scale, offset_x, offset_y);
-        float bodyScale = 0.25f;  // as provided.
+        float bodyScale = 0.25f;  // as provided for sun.
         float sun_radius_px = (layout.sunDiameter * bodyScale * scale) * 0.5f;
         draw_list->AddCircleFilled(sun_center, sun_radius_px, COLOR_GREEN, 32);
         int numRays = 8;
-        float gap = 4.0f;             // gap in pixels.
-        float rayLength = sun_radius_px * 1.0f; // extend rays 1.0x beyond gap.
-        float rayLineWidth = 1.0f;     // ray thickness.
+        float gap = 4.0f;
+        float rayLength = sun_radius_px * 1.0f;
+        float rayLineWidth = 1.0f;
         for (int i = 0; i < numRays; i++) {
             float angle = (3.1415926f * 2.0f / numRays) * i;
             ImVec2 rayStart(
@@ -259,25 +270,29 @@ void UI::DrawVolumeSun(ImDrawList* draw_list,
             draw_list->AddLine(rayStart, rayEnd, COLOR_GREEN, rayLineWidth);
         }
     } else {
-        // Draw a crescent moon.
-        float t = (64.0f - vol) / 64.0f;
-        float t2 = t * t;
-        float deltaX = 10.0f;
-        float bx = layout.sunX - deltaX * t2;
-        float by = layout.sunMinY - (layout.sunMinY - layout.sunMaxY) * t2;
-        float bx_moon = 2 * 40.0f - bx; // mirror around center at 40 virtual units.
+        // Moon branch.
+        float u = (64.0f - vol) / 64.0f; // u in [0,1]
+        float tau = 0.125f;
+        float bx = layout.sunX - 10.0f * u * u;
+        float by;
+        if (u < tau) {
+            by = layout.sunMinY;
+        } else {
+            float u_prime = (u - tau) / (1.0f - tau);
+            // For moon, define moonMaxY as mirror of sunMaxY about sunMinY.
+            float moonMaxY = layout.sunMinY + (layout.sunMinY - layout.sunMaxY);
+            by = layout.sunMinY + (moonMaxY - layout.sunMinY) * (u_prime * u_prime);
+        }
+        float bx_moon = 2 * 40.0f - bx; // mirror about center at 40 virtual units.
         ImVec2 moon_center = ToPixels(bx_moon, by, scale, offset_x, offset_y);
-        float bodyScale = 0.25f;
+        float bodyScale = 0.75f; // Make the moon 3x larger.
         float moon_radius_px = (layout.sunDiameter * bodyScale * scale) * 0.5f;
-        // Draw the full moon.
         draw_list->AddCircleFilled(moon_center, moon_radius_px, COLOR_GREEN, 32);
-        // Draw an offset black circle to cut out a crescent.
-        // Adjust this offset vector to shape the crescent.
+        // Draw a crescent: overlay an offset black circle.
         ImVec2 offsetVec = ImVec2(moon_radius_px * 0.4f, -moon_radius_px * 0.2f);
         ImVec2 cutoutCenter = ImVec2(moon_center.x + offsetVec.x, moon_center.y + offsetVec.y);
         draw_list->AddCircleFilled(cutoutCenter, moon_radius_px, COLOR_BLACK, 32);
     }
-    
     DrawSunMask(draw_list, scale, offset_x, offset_y);
 }
 
