@@ -36,11 +36,10 @@ struct LayoutConfig {
     // We'll define a circle along which the volume indicator moves.
     // The circle is centered horizontally at 40.0 (the midpoint of progressBarStartX and progressBarEndX).
     // We want the circle's bottom to be just below the progress bar.
-    // For example, if the progress bar is at 17.0 virtual units and we want the bottom to be 17.5,
-    // then if the radius R = 9.0, we need centerY = 17.5 - 9.0 = 8.5.
+    // 
     float indicatorCenterX = 40.0f;
     float indicatorCenterY = 8.5f;  // new: lowered to get a larger circle
-    float indicatorRadius  = 9.0f;   // new: 2x the previous radius
+    float indicatorRadius  = 10.0f;   // new: 2x the previous radius
 
     // We keep sunDiameter as before.
     float sunDiameter = 3.0f;   // ~48 px at scale=16

@@ -191,7 +191,7 @@ void UI::DrawVolumeSun(ImDrawList* draw_list,
         float x = C_x + R * std::cos(theta);
         float y = C_y + R * std::sin(theta);
         ImVec2 sun_center = ToPixels(x, y, scale, offset_x, offset_y);
-        float bodyScale = 0.25f;  // as provided.
+        float bodyScale = 0.4f;  // as provided.
         float sun_radius_px = (layout.sunDiameter * bodyScale * scale) * 0.5f;
         draw_list->AddCircleFilled(sun_center, sun_radius_px, COLOR_GREEN, 32);
         int numRays = 8;
