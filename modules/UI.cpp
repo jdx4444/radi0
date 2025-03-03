@@ -27,25 +27,23 @@ void UI::Render(ImDrawList* draw_list,
     DrawTimeRemaining(draw_list, audioManager, scale, offset_x, offset_y);
     
     // 2) Draw the sun that indicates volume, then its mask.
-    // Note: We now use a quadratic interpolation so that at full volume the sun's Y becomes sunMaxY.
+    // Use quadratic interpolation so that at full volume the sun's Y becomes sunMaxY.
     float t = static_cast<float>(audioManager.GetVolume()) / 128.0f;
     float t2 = t * t;
-    // For the sun, use a modified interpolation:
-    // by = sunMinY - (sunMinY - sunMaxY) * t2
     float bx = layout.sunX - 10.0f * t2;  // deltaX remains 10 virtual units.
     float by = layout.sunMinY - (layout.sunMinY - layout.sunMaxY) * t2;
     ImVec2 sun_center = ToPixels(bx, by, scale, offset_x, offset_y);
     
-    // Draw the sun's body with your original values.
+    // Draw the sun's body using your original values.
     float bodyScale = 0.25f;  // as provided.
     float sun_radius_px = (layout.sunDiameter * bodyScale * scale) * 0.5f;
     const ImU32 SUN_COLOR = COLOR_GREEN;
     draw_list->AddCircleFilled(sun_center, sun_radius_px, SUN_COLOR, 32);
     
-    // Draw rays as lines with a gap (using your provided values).
+    // Draw rays as lines with a gap.
     int numRays = 8;
     float gap = 4.0f;             // Gap in pixels.
-    float rayLength = sun_radius_px * 1.0f; // Ray extends 1.0x beyond the gap.
+    float rayLength = sun_radius_px * 1.0f; // Extend rays 1.0x beyond the gap.
     float rayLineWidth = 1.0f;     // Ray thickness.
     for (int i = 0; i < numRays; i++) {
         float angle = (3.1415926f * 2.0f / numRays) * i;
@@ -75,7 +73,7 @@ void UI::Render(ImDrawList* draw_list,
     sprite.Draw(draw_list, COLOR_GREEN);
     DrawMaskBars(draw_list, scale, offset_x, offset_y);
 
-    // 4) Finally, draw the artist and track info on top.
+    // 4) Draw the artist and track info on top.
     DrawArtistAndTrackInfo(draw_list, audioManager, scale, offset_x, offset_y);
 }
 
@@ -86,7 +84,7 @@ void UI::Cleanup()
 
 /**
  * DrawArtistAndTrackInfo:
- * Uses explicit layout values for the text regions defined in LayoutConfig.
+ * Uses explicit layout values from LayoutConfig.
  * The artist text is drawn in the region starting at (artistTextX, artistTextY)
  * with a maximum width of artistTextWidth.
  * The track text is drawn in the region starting at (trackTextX, trackTextY)
@@ -99,7 +97,6 @@ void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
                                 float offset_x,
                                 float offset_y)
 {
-    // Fetch metadata.
     std::string artist_name = audioManager.GetCurrentTrackArtist();
     std::string track_name  = audioManager.GetCurrentTrackTitle();
     if (artist_name.empty()) artist_name = "Unknown Artist";
@@ -109,7 +106,7 @@ void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
     ImVec2 artistPos = ToPixels(layout.artistTextX, layout.artistTextY, scale, offset_x, offset_y);
     float artistRegionWidth_px = layout.artistTextWidth * scale;
 
-    ImGui::SetWindowFontScale(1.6f);  // Both use 1.6f now.
+    ImGui::SetWindowFontScale(1.6f);
     ImVec2 artistTextSize = ImGui::CalcTextSize(artist_name.c_str());
     static float artist_scroll_offset = 0.0f;
     float dt = ImGui::GetIO().DeltaTime * 30.0f;
@@ -132,7 +129,7 @@ void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
     ImVec2 trackPos = ToPixels(layout.trackTextX, layout.trackTextY, scale, offset_x, offset_y);
     float trackRegionWidth_px = layout.trackTextWidth * scale;
 
-    ImGui::SetWindowFontScale(1.6f);  // Same font size as artist.
+    ImGui::SetWindowFontScale(1.6f);  // Same font scale as artist.
     ImVec2 trackTextSize = ImGui::CalcTextSize(track_name.c_str());
     static float track_scroll_offset = 0.0f;
     if (trackTextSize.x > trackRegionWidth_px) {
@@ -212,28 +209,31 @@ void UI::DrawVolumeSun(ImDrawList* draw_list,
                        float offset_x,
                        float offset_y)
 {
-    // Compute easing parameter.
+    // Use t = (volume/128) and then t² for easing.
     float t = static_cast<float>(audioManager.GetVolume()) / 128.0f;
     float t2 = t * t;
 
-    // Use a modified interpolation so that at full volume, the sun's Y becomes sunMaxY.
+    // Compute sun position in virtual coordinates.
+    // At volume=0: (sunX, sunMinY)
+    // At volume=1: (sunX - deltaX, sunMinY - (sunMinY - sunMaxY))
     float deltaX = 10.0f;  // move left by 10 virtual units at full volume.
-    // Instead of using a fixed deltaY, we now interpolate from sunMinY to sunMaxY:
     float bx = layout.sunX - deltaX * t2;
     float by = layout.sunMinY - (layout.sunMinY - layout.sunMaxY) * t2;
 
     ImVec2 sun_center = ToPixels(bx, by, scale, offset_x, offset_y);
 
+    // Draw the sun's body.
     float bodyScale = 0.25f;  // as provided.
     float sun_radius_px = (layout.sunDiameter * bodyScale * scale) * 0.5f;
 
     const ImU32 SUN_COLOR = COLOR_GREEN;
     draw_list->AddCircleFilled(sun_center, sun_radius_px, SUN_COLOR, 32);
 
+    // Draw rays as lines with a gap.
     int numRays = 8;
-    float gap = 4.0f; // Gap in pixels.
+    float gap = 4.0f;             // Gap in pixels between the sun's edge and the ray.
     float rayLength = sun_radius_px * 1.0f; // Extend rays 1.0x beyond the gap.
-    float rayLineWidth = 1.0f; // Ray thickness.
+    float rayLineWidth = 1.0f;     // Thickness of the ray.
     for (int i = 0; i < numRays; i++) {
         float angle = (3.1415926f * 2.0f / numRays) * i;
         ImVec2 rayStart(
