@@ -33,19 +33,27 @@ struct LayoutConfig {
     // -----------------------
     // Sun Volume Indicator
     // -----------------------
-    // Where the sun should be horizontally (in virtual units).
-    // For example, near x=60 places it in the top-right quadrant of an 80×30 UI.
     float sunX       = 60.0f;  
     float sunDiameter = 3.0f;   // ~48 px at scale=16
-    // At volume=0, sun is at sunMinY (fully hidden below horizon).
-    // At volume=128, sun is at sunMaxY (fully above horizon).
     float sunMinY    = 24.0f;   // just below horizon at y=22
     float sunMaxY    = 5.0f;    // near the top
-
-    // Mask to hide the sun below the horizon.
-    // If the horizon is at y=22, we can mask from y=22 downward.
     float sunMaskTop = 22.0f;
     float sunMaskBottom = 30.0f; // bottom of the screen is ~30 in virtual coords
+
+    // -----------------------
+    // Artist & Track Text
+    // -----------------------
+    // These values define the explicit text regions (in virtual units)
+    // where the artist and track names are drawn.
+    // The artist name will appear under the left bottom edge of the progress bar.
+    // The track name will begin at the halfway mark.
+    float artistTextX    = 15.0f;   // e.g. same as progressBarStartX
+    float artistTextY    = 23.0f;   // just below the progress bar (progressBarY=22)
+    float artistTextWidth = 25.0f;  // half of the progress bar width (50/2)
+
+    float trackTextX     = 40.0f;   // halfway along the progress bar (15 + 25)
+    float trackTextY     = 23.0f;   // same vertical position as artist text
+    float trackTextWidth  = 25.0f;  // half of the progress bar width
 };
 
 class UI {
@@ -54,7 +62,7 @@ public:
     ~UI();
 
     void Initialize();
-    // Updated Render signature using unified scale and offsets
+    // Updated Render signature using unified scale and offsets.
     void Render(ImDrawList* draw_list,
                 BluetoothAudioManager& audioManager,
                 Sprite& sprite,
@@ -63,12 +71,11 @@ public:
                 float offset_y);
     void Cleanup();
 
-    // Expose layout config for adjustments
+    // Expose layout config for adjustments.
     LayoutConfig& GetLayoutConfig() { return layout; }
 
 private:
-    // --- [Removed the old DrawVolumeBar entirely] ---
-
+    // Artist & Track Text drawing.
     void DrawArtistAndTrackInfo(ImDrawList* draw_list,
                                 BluetoothAudioManager& audioManager,
                                 float scale,
@@ -92,7 +99,7 @@ private:
                       float offset_x,
                       float offset_y);
 
-    // Sun Volume Indicator
+    // Sun Volume Indicator drawing.
     void DrawVolumeSun(ImDrawList* draw_list,
                        BluetoothAudioManager& audioManager,
                        float scale,

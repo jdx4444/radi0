@@ -43,7 +43,7 @@ void UI::Render(ImDrawList* draw_list,
     sprite.Draw(draw_list, COLOR_GREEN);
     DrawMaskBars(draw_list, scale, offset_x, offset_y);
 
-    // 4) Draw the artist and track info on top of everything.
+    // 4) Draw the artist and track info on top.
     DrawArtistAndTrackInfo(draw_list, audioManager, scale, offset_x, offset_y);
 }
 
@@ -52,6 +52,15 @@ void UI::Cleanup()
     // No cleanup needed.
 }
 
+/**
+ * DrawArtistAndTrackInfo:
+ * Uses explicit layout values defined in LayoutConfig.
+ * The artist text is drawn in the region starting at (artistTextX, artistTextY)
+ * with a maximum width of artistTextWidth.
+ * The track text is drawn similarly, starting at (trackTextX, trackTextY)
+ * with a maximum width of trackTextWidth.
+ * If the text exceeds the available width, it scrolls.
+ */
 void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
                                 BluetoothAudioManager& audioManager,
                                 float scale,
@@ -64,56 +73,45 @@ void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
     if (artist_name.empty()) artist_name = "Unknown Artist";
     if (track_name.empty()) track_name  = "Unknown Track";
 
-    // Use the progress bar as our baseline region.
-    float pbStart = layout.progressBarStartX;
-    float pbEnd   = layout.progressBarEndX;
-    float pbY     = layout.progressBarY;
-    float pbWidth = pbEnd - pbStart;
+    // Artist text region.
+    ImVec2 artistPos = ToPixels(layout.artistTextX, layout.artistTextY, scale, offset_x, offset_y);
+    float artistRegionWidth_px = layout.artistTextWidth * scale;
 
-    // Set the Y coordinate to be the same as before (we're not shifting it vertically).
-    float textY_virtual = pbY; // draw it at the same level as the progress bar
-
-    // Divide the progress bar horizontally: left half for artist, right half for track.
-    float leftRegionX_virtual  = pbStart;
-    float rightRegionX_virtual = pbStart + pbWidth * 0.5f;
-    float regionWidth_virtual  = pbWidth * 0.5f;
-    float regionWidth_px = regionWidth_virtual * scale;
-
-    // --- Artist Name (left half) ---
-    ImVec2 artistPos = ToPixels(leftRegionX_virtual, textY_virtual, scale, offset_x, offset_y);
     ImGui::SetWindowFontScale(1.6f);
     ImVec2 artistTextSize = ImGui::CalcTextSize(artist_name.c_str());
     static float artist_scroll_offset = 0.0f;
     float dt = ImGui::GetIO().DeltaTime * 30.0f;
-    if (artistTextSize.x > regionWidth_px) {
+    if (artistTextSize.x > artistRegionWidth_px) {
         artist_scroll_offset += dt;
         if (artist_scroll_offset > artistTextSize.x)
-            artist_scroll_offset = -regionWidth_px;
+            artist_scroll_offset = -artistRegionWidth_px;
     } else {
         artist_scroll_offset = 0.0f;
     }
     ImVec2 artistClipMin = artistPos;
-    ImVec2 artistClipMax = ImVec2(artistPos.x + regionWidth_px, artistPos.y + artistTextSize.y);
+    ImVec2 artistClipMax = ImVec2(artistPos.x + artistRegionWidth_px, artistPos.y + artistTextSize.y);
     draw_list->PushClipRect(artistClipMin, artistClipMax, true);
     ImGui::SetCursorPos(ImVec2(artistPos.x - artist_scroll_offset, artistPos.y));
     ImGui::TextUnformatted(artist_name.c_str());
     draw_list->PopClipRect();
     ImGui::SetWindowFontScale(1.0f);
 
-    // --- Track Name (right half) ---
-    ImVec2 trackPos = ToPixels(rightRegionX_virtual, textY_virtual, scale, offset_x, offset_y);
+    // Track text region.
+    ImVec2 trackPos = ToPixels(layout.trackTextX, layout.trackTextY, scale, offset_x, offset_y);
+    float trackRegionWidth_px = layout.trackTextWidth * scale;
+
     ImGui::SetWindowFontScale(1.3f);
     ImVec2 trackTextSize = ImGui::CalcTextSize(track_name.c_str());
     static float track_scroll_offset = 0.0f;
-    if (trackTextSize.x > regionWidth_px) {
+    if (trackTextSize.x > trackRegionWidth_px) {
         track_scroll_offset += dt;
         if (track_scroll_offset > trackTextSize.x)
-            track_scroll_offset = -regionWidth_px;
+            track_scroll_offset = -trackRegionWidth_px;
     } else {
         track_scroll_offset = 0.0f;
     }
     ImVec2 trackClipMin = trackPos;
-    ImVec2 trackClipMax = ImVec2(trackPos.x + regionWidth_px, trackPos.y + trackTextSize.y);
+    ImVec2 trackClipMax = ImVec2(trackPos.x + trackRegionWidth_px, trackPos.y + trackTextSize.y);
     draw_list->PushClipRect(trackClipMin, trackClipMax, true);
     ImGui::SetCursorPos(ImVec2(trackPos.x - track_scroll_offset, trackPos.y));
     ImGui::TextUnformatted(track_name.c_str());
@@ -157,7 +155,6 @@ void UI::DrawMaskBars(ImDrawList* draw_list,
                       float offset_x,
                       float offset_y)
 {
-    // Left and right black rectangles that hide sprite edges.
     float mask_width  = 5.0f;
     float mask_height = 3.0f;
 
@@ -177,44 +174,32 @@ void UI::DrawMaskBars(ImDrawList* draw_list,
     draw_list->AddRectFilled(right_top, right_bot, COLOR_BLACK);
 }
 
-/**
- * DrawVolumeSun:
- * - Uses an easing function (t²) so that at full volume the sun reaches its peak.
- * - Draws a slightly smaller sun body (circle) and draws rays as lines with a gap.
- */
 void UI::DrawVolumeSun(ImDrawList* draw_list,
                        BluetoothAudioManager& audioManager,
                        float scale,
                        float offset_x,
                        float offset_y)
 {
-    // Use t = (volume/128) and then t² for easing.
     float t = static_cast<float>(audioManager.GetVolume()) / 128.0f;
     float t2 = t * t;
 
-    // Compute sun position in virtual coordinates.
-    // At volume=0: (sunX, sunMinY)
-    // At volume=1: (sunX - deltaX, sunMinY - deltaY)
     float deltaX = 10.0f;  // move left by 10 virtual units at full volume.
     float deltaY = 16.0f;  // move up by 16 virtual units at full volume.
     float bx = layout.sunX - deltaX * t2;
     float by = layout.sunMinY - deltaY * t2;
 
-    // Convert to pixels.
     ImVec2 sun_center = ToPixels(bx, by, scale, offset_x, offset_y);
 
-    // Make the sun's body smaller.
-    float bodyScale = 0.7f;  // 70% of default diameter.
+    float bodyScale = 0.25f;  // as provided.
     float sun_radius_px = (layout.sunDiameter * bodyScale * scale) * 0.5f;
 
     const ImU32 SUN_COLOR = COLOR_GREEN;
     draw_list->AddCircleFilled(sun_center, sun_radius_px, SUN_COLOR, 32);
 
-    // Draw rays as lines with a gap.
     int numRays = 8;
-    float gap = 2.0f; // Gap in pixels between the sun's edge and the ray.
-    float rayLength = sun_radius_px * 1.5f; // Extend rays 1.5x beyond the gap.
-    float rayLineWidth = 2.0f; // Thickness of the rays.
+    float gap = 4.0f;             // Gap in pixels between the sun's edge and the ray.
+    float rayLength = sun_radius_px * 1.0f; // Extend rays 1.0x beyond the gap.
+    float rayLineWidth = 1.0f;     // Thickness of the ray.
     for (int i = 0; i < numRays; i++) {
         float angle = (3.1415926f * 2.0f / numRays) * i;
         ImVec2 rayStart(
@@ -234,7 +219,6 @@ void UI::DrawSunMask(ImDrawList* draw_list,
                      float offset_x,
                      float offset_y)
 {
-    // Cover the region from sunMaskTop to sunMaskBottom (virtual coords) across the full width.
     float left   = 0.0f;
     float right  = 80.0f;
     float top    = layout.sunMaskTop;
