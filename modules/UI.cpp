@@ -22,18 +22,15 @@ void UI::Render(ImDrawList* draw_list,
                 float offset_x,
                 float offset_y)
 {
-    // 1) Draw the artist and track info (positioned relative to the progress bar).
-    DrawArtistAndTrackInfo(draw_list, audioManager, scale, offset_x, offset_y);
-
-    // 2) Draw the progress line (the "horizon") and time remaining.
+    // 1) Draw the progress line (the "horizon") and time remaining.
     DrawProgressLine(draw_list, audioManager, scale, offset_x, offset_y);
     DrawTimeRemaining(draw_list, audioManager, scale, offset_x, offset_y);
     
-    // 3) Draw the sun that indicates volume, then mask it below the horizon.
+    // 2) Draw the sun that indicates volume, then its mask.
     DrawVolumeSun(draw_list, audioManager, scale, offset_x, offset_y);
     DrawSunMask(draw_list, scale, offset_x, offset_y);
 
-    // 4) Draw the car sprite traveling along the progress bar.
+    // 3) Draw the car sprite and its side mask bars.
     constexpr float spriteVirtualWidth = 19 * 0.16f; // ~3.04 virtual units.
     float effectiveStartX = layout.progressBarStartX - spriteVirtualWidth + layout.spriteXCorrection;
     float effectiveEndX   = layout.progressBarEndX + layout.spriteXCorrection;
@@ -44,9 +41,10 @@ void UI::Render(ImDrawList* draw_list,
                           layout.spriteYOffset,
                           layout.spriteBaseY);
     sprite.Draw(draw_list, COLOR_GREEN);
-
-    // 5) Draw mask bars to conceal sprite edges if needed.
     DrawMaskBars(draw_list, scale, offset_x, offset_y);
+
+    // 4) Draw the artist and track info on top of everything.
+    DrawArtistAndTrackInfo(draw_list, audioManager, scale, offset_x, offset_y);
 }
 
 void UI::Cleanup()
@@ -54,14 +52,6 @@ void UI::Cleanup()
     // No cleanup needed.
 }
 
-/**
- * DrawArtistAndTrackInfo:
- * - The available region is derived from the progress bar.
- * - The artist name is drawn in the left half.
- * - The track name is drawn in the right half.
- * - Both are positioned slightly above the progress bar (to be above the masks).
- * - If the text is longer than the available region, it scrolls.
- */
 void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
                                 BluetoothAudioManager& audioManager,
                                 float scale,
@@ -80,15 +70,13 @@ void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
     float pbY     = layout.progressBarY;
     float pbWidth = pbEnd - pbStart;
 
-    // Set a Y coordinate slightly above the progress bar to avoid the mask.
-    float textY_virtual = pbY - 1.5f; // 1.5 virtual units above the progress bar.
+    // Set the Y coordinate to be the same as before (we're not shifting it vertically).
+    float textY_virtual = pbY; // draw it at the same level as the progress bar
 
-    // Define two regions: left half for the artist and right half for the track.
-    float leftRegionX_virtual = pbStart;
+    // Divide the progress bar horizontally: left half for artist, right half for track.
+    float leftRegionX_virtual  = pbStart;
     float rightRegionX_virtual = pbStart + pbWidth * 0.5f;
-    float regionWidth_virtual = pbWidth * 0.5f;
-
-    // Convert region widths to pixels.
+    float regionWidth_virtual  = pbWidth * 0.5f;
     float regionWidth_px = regionWidth_virtual * scale;
 
     // --- Artist Name (left half) ---
@@ -192,8 +180,7 @@ void UI::DrawMaskBars(ImDrawList* draw_list,
 /**
  * DrawVolumeSun:
  * - Uses an easing function (t²) so that at full volume the sun reaches its peak.
- * - Draws a slightly smaller sun body (circle) and then draws rays as lines,
- *   starting with a gap between the sun's edge and the ray.
+ * - Draws a slightly smaller sun body (circle) and draws rays as lines with a gap.
  */
 void UI::DrawVolumeSun(ImDrawList* draw_list,
                        BluetoothAudioManager& audioManager,
@@ -205,7 +192,7 @@ void UI::DrawVolumeSun(ImDrawList* draw_list,
     float t = static_cast<float>(audioManager.GetVolume()) / 128.0f;
     float t2 = t * t;
 
-    // Define sun position using easing:
+    // Compute sun position in virtual coordinates.
     // At volume=0: (sunX, sunMinY)
     // At volume=1: (sunX - deltaX, sunMinY - deltaY)
     float deltaX = 10.0f;  // move left by 10 virtual units at full volume.
@@ -216,8 +203,8 @@ void UI::DrawVolumeSun(ImDrawList* draw_list,
     // Convert to pixels.
     ImVec2 sun_center = ToPixels(bx, by, scale, offset_x, offset_y);
 
-    // Make the sun's body slightly smaller.
-    float bodyScale = 0.7f;  // 70% of the default diameter.
+    // Make the sun's body smaller.
+    float bodyScale = 0.7f;  // 70% of default diameter.
     float sun_radius_px = (layout.sunDiameter * bodyScale * scale) * 0.5f;
 
     const ImU32 SUN_COLOR = COLOR_GREEN;
@@ -225,17 +212,15 @@ void UI::DrawVolumeSun(ImDrawList* draw_list,
 
     // Draw rays as lines with a gap.
     int numRays = 8;
-    float gap = 2.0f;             // Gap in pixels between the sun's edge and the ray.
-    float rayLength = sun_radius_px * 1.5f;  // Extend rays 1.5x the sun_radius (adjust for desired length).
-    float rayLineWidth = 2.0f;     // Thickness of the rays.
+    float gap = 2.0f; // Gap in pixels between the sun's edge and the ray.
+    float rayLength = sun_radius_px * 1.5f; // Extend rays 1.5x beyond the gap.
+    float rayLineWidth = 2.0f; // Thickness of the rays.
     for (int i = 0; i < numRays; i++) {
         float angle = (3.1415926f * 2.0f / numRays) * i;
-        // Start the ray at sun's edge plus the gap.
         ImVec2 rayStart(
             sun_center.x + std::cos(angle) * (sun_radius_px + gap),
             sun_center.y + std::sin(angle) * (sun_radius_px + gap)
         );
-        // End the ray further out.
         ImVec2 rayEnd(
             sun_center.x + std::cos(angle) * (sun_radius_px + gap + rayLength),
             sun_center.y + std::sin(angle) * (sun_radius_px + gap + rayLength)
