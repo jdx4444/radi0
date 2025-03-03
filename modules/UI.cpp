@@ -7,22 +7,7 @@
 const ImU32 COLOR_GREEN = IM_COL32(109, 254, 149, 255);
 const ImU32 COLOR_BLACK = IM_COL32(0, 0, 0, 255);
 
-//
-// Circular Mapping for the Volume Indicator:
-//
-// We define a circle with center (C_x, C_y) = (indicatorCenterX, indicatorCenterY)
-// and radius R = indicatorRadius. For volumes in [64,128] (the sun branch):
-//   Let t = (vol - 64)/64, and define theta = (π/2) - ((π/2)*t).
-//   Then the sun's position is: 
-//      x = C_x + R*cos(theta)
-//      y = C_y + R*sin(theta)
-// For volumes in [0,64] (the moon branch):
-//   Let t = (64 - vol)/64, and define theta = (π/2) + ((π/2)*t).
-//   Then the moon's position is:
-//      x = C_x + R*cos(theta)
-//      y = C_y + R*sin(theta)
-// (Since cos(θ) is negative for θ>90°, this places the moon on the left half of the circle.)
-//
+// A constant for PI.
 static const float PI = 3.1415926f;
 
 UI::UI() {}
@@ -163,15 +148,9 @@ void UI::DrawMaskBars(ImDrawList* draw_list,
 }
 
 //
-// DrawVolumeSun: Draws the volume indicator along a fixed circular path.
-// The circle is defined by center (indicatorCenterX, indicatorCenterY) and radius indicatorRadius.
-// For vol in [64,128] (sun branch):
-//   t = (vol - 64)/64, then theta = π/2 - (π/2)*t (so that at vol=64, theta = 90°,
-//   and at vol=128, theta = 0°).
-// For vol in [0,64] (moon branch):
-//   t = (64 - vol)/64, then theta = π/2 + (π/2)*t (so that at vol=64, theta = 90°,
-//   and at vol=0, theta = 180°).
-// The indicator is drawn behind the progress line.
+// DrawVolumeSun: Draws the volume indicator along a fixed circular path with a perspective
+// effect that scales the sun/moon larger near the horizon (progress bar) and smaller when farther away.
+//
 void UI::DrawVolumeSun(ImDrawList* draw_list,
                        BluetoothAudioManager& audioManager,
                        float scale,
@@ -179,21 +158,44 @@ void UI::DrawVolumeSun(ImDrawList* draw_list,
                        float offset_y)
 {
     // Use the circle parameters from LayoutConfig.
-    float C_x = layout.indicatorCenterX;  // 40.0
-    float C_y = layout.indicatorCenterY;    // now 8.5? (we set it to 8.5 for the smaller circle)
-    float R   = layout.indicatorRadius;     // now 9.0
-
+    float C_x = layout.indicatorCenterX;
+    float C_y = layout.indicatorCenterY;
+    float R   = layout.indicatorRadius;
     float vol = static_cast<float>(audioManager.GetVolume());
+    float x, y;
+
+    if (vol >= 64.0f) {
+        // Sun branch: compute position based on volume.
+        float t = (vol - 64.0f) / 64.0f;  // t in [0,1]
+        float theta = (PI / 2.0f) - ((PI / 2.0f) * t);  // theta from 90° to 0°
+        x = C_x + R * std::cos(theta);
+        y = C_y + R * std::sin(theta);
+    } else {
+        // Moon branch: compute position based on volume.
+        float t = (64.0f - vol) / 64.0f;  // t in [0,1]
+        float theta = (PI / 2.0f) + ((PI / 2.0f) * t);  // theta from 90° to 180°
+        x = C_x + R * std::cos(theta);
+        y = C_y + R * std::sin(theta);
+    }
+
+    // Calculate perspective scale based on the vertical distance from the horizon (progress bar).
+    float horizonY = layout.progressBarY;
+    float verticalDistance = std::fabs(y - horizonY);
+    float d_min = std::fabs((layout.indicatorCenterY + layout.indicatorRadius) - horizonY);
+    float d_max = std::fabs((layout.indicatorCenterY - layout.indicatorRadius) - horizonY);
+    float normalized = (verticalDistance - d_min) / (d_max - d_min);
+    normalized = std::min(std::max(normalized, 0.0f), 1.0f);
+    float perspectiveScale = 1.0f - normalized * 0.5f; // Varies from 1.0 at the horizon to 0.5 farther away.
+
     if (vol >= 64.0f) {
         // Sun branch.
-        float t = (vol - 64.0f) / 64.0f;  // t in [0,1]
-        float theta = (PI / 2.0f) - ((PI / 2.0f) * t);  // from 90° to 0°
-        float x = C_x + R * std::cos(theta);
-        float y = C_y + R * std::sin(theta);
         ImVec2 sun_center = ToPixels(x, y, scale, offset_x, offset_y);
-        float bodyScale = 0.4f;  // as provided.
-        float sun_radius_px = (layout.sunDiameter * bodyScale * scale) * 0.5f;
+        float bodyScale = 0.4f;  // Base scale for the sun.
+        float finalScale = bodyScale * perspectiveScale;
+        float sun_radius_px = (layout.sunDiameter * finalScale * scale) * 0.5f;
         draw_list->AddCircleFilled(sun_center, sun_radius_px, COLOR_GREEN, 32);
+        
+        // Draw the sun's rays.
         int numRays = 8;
         float gap = 4.0f;
         float rayLength = sun_radius_px * 1.0f;
@@ -212,13 +214,10 @@ void UI::DrawVolumeSun(ImDrawList* draw_list,
         }
     } else {
         // Moon branch.
-        float t = (64.0f - vol) / 64.0f;  // t in [0,1]
-        float theta = (PI / 2.0f) + ((PI / 2.0f) * t);  // from 90° to 180°
-        float x = C_x + R * std::cos(theta);
-        float y = C_y + R * std::sin(theta);
         ImVec2 moon_center = ToPixels(x, y, scale, offset_x, offset_y);
-        float bodyScale = 0.75f; // Moon is 3x larger.
-        float moon_radius_px = (layout.sunDiameter * bodyScale * scale) * 0.5f;
+        float bodyScale = 0.75f; // Base scale for the moon.
+        float finalScale = bodyScale * perspectiveScale;
+        float moon_radius_px = (layout.sunDiameter * finalScale * scale) * 0.5f;
         draw_list->AddCircleFilled(moon_center, moon_radius_px, COLOR_GREEN, 32);
         // Draw a crescent by overlaying an offset black circle.
         ImVec2 offsetVec = ImVec2(moon_radius_px * 0.4f, -moon_radius_px * 0.2f);
