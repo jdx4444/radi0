@@ -15,12 +15,11 @@ struct LayoutConfig {
     float trackRegionRightX = 65.0f;
     float artistY           = 11.0f - 5.0f;    // originally 11, now 6.0
     float trackY            = 13.0f - 5.0f;    // originally 13, now 8.0
-
+    
     float progressBarStartX = 15.0f;
     float progressBarEndX   = 65.0f;
     float progressBarY      = 22.0f - 5.0f;    // originally 22, now 17.0
-    // (We no longer use a progress number display)
-
+    // We no longer display the track progress number.
     float progressBarThickness = 0.25f;        // so that at scale=16, thickness=4 px
 
     // -----------------------
@@ -34,19 +33,19 @@ struct LayoutConfig {
     // -----------------------
     // Volume Indicator (Sun/Moon) – Circular Path
     // -----------------------
-    // We define a circle with:
-    //   center_x = (progressBarStartX+progressBarEndX)/2 = 40.0
-    //   We want the circle's bottom to be just below the progress bar.
-    //   For example, if the progress bar is at 17, we choose a radius of 4.5 so that the bottom is 13.5+4.5=18.
-    //   That places the circle's top at 13.5-4.5=9.
+    // We'll define a circle along which the volume indicator moves.
+    // The circle is centered horizontally at 40.0 (the midpoint of progressBarStartX and progressBarEndX).
+    // We want the circle's bottom to be just below the progress bar.
+    // For example, if the progress bar is at 17.0 virtual units and we want the bottom to be 17.5,
+    // then if the radius R = 9.0, we need centerY = 17.5 - 9.0 = 8.5.
     float indicatorCenterX = 40.0f;
-    float indicatorCenterY = 13.5f;
-    float indicatorRadius  = 4.5f;
-    
-    // We still keep the sunDiameter for drawing the indicator's body.
-    float sunDiameter = 3.0f;   // as before
+    float indicatorCenterY = 8.5f;  // new: lowered to get a larger circle
+    float indicatorRadius  = 9.0f;   // new: 2x the previous radius
 
-    // The mask (horizon) remains defined:
+    // We keep sunDiameter as before.
+    float sunDiameter = 3.0f;   // ~48 px at scale=16
+
+    // The horizon mask remains unchanged.
     float sunMaskTop = 22.0f - 5.0f;    // now 17.0
     float sunMaskBottom = 30.0f - 5.0f; // now 25.0
 
@@ -78,7 +77,6 @@ public:
                 float offset_y);
     void Cleanup();
 
-    // Expose layout config for adjustments.
     LayoutConfig& GetLayoutConfig() { return layout; }
 
 private:
@@ -99,7 +97,7 @@ private:
                       float offset_x,
                       float offset_y);
 
-    // Sun/Moon Volume Indicator drawing.
+    // Volume Indicator drawing.
     void DrawVolumeSun(ImDrawList* draw_list,
                        BluetoothAudioManager& audioManager,
                        float scale,
