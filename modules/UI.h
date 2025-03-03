@@ -13,32 +13,33 @@ struct LayoutConfig {
     // -----------------------
     float trackRegionLeftX  = 15.0f;
     float trackRegionRightX = 65.0f;
-    float artistY           = 11.0f - 5.0f;    // now 6.0
-    float trackY            = 13.0f - 5.0f;    // now 8.0
+    float artistY           = 11.0f - 5.0f;    // originally 11, now 6.0
+    float trackY            = 13.0f - 5.0f;    // originally 13, now 8.0
     
     float progressBarStartX = 15.0f;
     float progressBarEndX   = 65.0f;
-    float progressBarY      = 22.0f - 5.0f;    // now 17.0
+    float progressBarY      = 22.0f - 5.0f;    // originally 22, now 17.0
     float timeTextYOffset   = 1.0f;
-    float progressBarThickness = 0.25f;        // stays the same
+    float progressBarThickness = 0.25f;        // so that at scale=16, thickness=4 px
 
     // -----------------------
     // Car Sprite
     // -----------------------
     float spriteXOffset     = 0.0f;
-    float spriteYOffset     = -8.0f;
-    float spriteBaseY       = 28.25f - 5.0f;     // now 23.25
-    float spriteXCorrection = 0.250f;
+    float spriteYOffset     = -8.0f;           // unchanged
+    float spriteBaseY       = 28.25f - 5.0f;     // originally 28.25, now 23.25
+    float spriteXCorrection = 0.250f;          // unchanged
 
     // -----------------------
     // Sun/Moon Volume Indicator
     // -----------------------
     float sunX       = 60.0f;  
     float sunDiameter = 3.0f;   // ~48 px at scale=16
-    float sunMinY    = 24.0f - 5.0f;   // now 19.0
-    float sunMaxY    = 8.0f;    // sun's top position
-    // New field for moon: at full moon (vol=0), the moon's center will be at moonMaxY.
-    float moonMaxY   = 17.0f;   // adjust as desired (e.g., 17.0 virtual units)
+    // For the indicator, shift sunMinY upward by 5.
+    float sunMinY    = 24.0f - 5.0f;   // originally 24, now 19.0
+    // sunMaxY is not used in the new mapping, but is kept here.
+    float sunMaxY    = 8.0f;
+    // The mask remains.
     float sunMaskTop = 22.0f - 5.0f;    // now 17.0
     float sunMaskBottom = 30.0f - 5.0f; // now 25.0
 
@@ -46,11 +47,12 @@ struct LayoutConfig {
     // Artist & Track Text
     // -----------------------
     float artistTextX    = 15.0f;         // same as progressBarStartX.
-    float artistTextY    = 23.0f - 5.0f;    // now 18.0.
+    float artistTextY    = 23.0f - 5.0f;    // originally 23, now 18.0.
     float artistTextWidth = 25.0f;         // half of the progress bar width.
 
-    float trackTextX     = 65.0f - 25.0f;   // right-aligned: 40.0.
-    float trackTextY     = 23.0f - 5.0f;      // now 18.0.
+    // For right-aligned track text, set its region's left edge to (progressBarEndX - trackTextWidth).
+    float trackTextX     = 65.0f - 25.0f;   // i.e. 40.0f.
+    float trackTextY     = 23.0f - 5.0f;      // now 18.0f.
     float trackTextWidth  = 25.0f;          // half of the progress bar width.
 };
 
@@ -60,6 +62,7 @@ public:
     ~UI();
 
     void Initialize();
+    // Render using unified scale and offsets.
     void Render(ImDrawList* draw_list,
                 BluetoothAudioManager& audioManager,
                 Sprite& sprite,
@@ -68,6 +71,7 @@ public:
                 float offset_y);
     void Cleanup();
 
+    // Expose layout config for adjustments.
     LayoutConfig& GetLayoutConfig() { return layout; }
 
 private:
@@ -94,6 +98,7 @@ private:
                       float offset_x,
                       float offset_y);
 
+    // Sun/Moon Volume Indicator drawing.
     void DrawVolumeSun(ImDrawList* draw_list,
                        BluetoothAudioManager& audioManager,
                        float scale,
