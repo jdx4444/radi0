@@ -59,6 +59,7 @@ struct LayoutConfig {
     float trackTextX     = 65.0f - 25.0f;   // i.e. 40.0f.
     float trackTextY     = 23.0f - 5.0f;      // now 18.0f.
     float trackTextWidth  = 25.0f;          // half of the progress bar width.
+    float borderPadding = 2.0f;
 };
 
 class UI {
