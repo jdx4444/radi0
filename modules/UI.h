@@ -13,47 +13,47 @@ struct LayoutConfig {
     // -----------------------
     float trackRegionLeftX  = 15.0f;
     float trackRegionRightX = 65.0f;
-    float artistY           = 11.0f;
-    float trackY            = 13.0f;
+    float artistY           = 11.0f - 5.0f;  // shifted up to 6.0f
+    float trackY            = 13.0f - 5.0f;  // shifted up to 8.0f
     
     float progressBarStartX = 15.0f;
     float progressBarEndX   = 65.0f;
-    float progressBarY      = 22.0f;
-    float timeTextYOffset   = 1.0f;
-    float progressBarThickness = 0.25f;  // so that at scale=16, thickness=4 px
+    float progressBarY      = 22.0f - 5.0f;  // now 17.0f
+    float timeTextYOffset   = 1.0f;          // unchanged
+    float progressBarThickness = 0.25f;      // stays the same
 
     // -----------------------
     // Car Sprite
     // -----------------------
     float spriteXOffset     = 0.0f;
-    float spriteYOffset     = -8.0f;
-    float spriteBaseY       = 28.25f;
-    float spriteXCorrection = 0.250f; // Shifts the car’s travel horizontally
+    float spriteYOffset     = -8.0f;         // unchanged (if you wish, you can also shift this)
+    float spriteBaseY       = 28.25f - 5.0f;   // now 23.25f
+    float spriteXCorrection = 0.250f;        // unchanged
 
     // -----------------------
     // Sun Volume Indicator
     // -----------------------
     float sunX       = 60.0f;  
     float sunDiameter = 3.0f;   // ~48 px at scale=16
-    float sunMinY    = 24.0f;   // just below horizon at y=22
-    float sunMaxY    = 5.0f;    // near the top
-    float sunMaskTop = 22.0f;
-    float sunMaskBottom = 30.0f; // bottom of the screen is ~30 in virtual coords
+    // Shift sunMinY up by 5 units:
+    float sunMinY    = 24.0f - 5.0f;   // now 19.0f
+    // Override max height to 20.0f:
+    float sunMaxY    = 20.0f;
+    // Also shift the mask values up by 5.
+    float sunMaskTop = 22.0f - 5.0f;    // now 17.0f
+    float sunMaskBottom = 30.0f - 5.0f; // now 25.0f
 
     // -----------------------
     // Artist & Track Text
     // -----------------------
-    // These values define the explicit text regions (in virtual units)
-    // where the artist and track names are drawn.
-    // The artist name will appear under the left bottom edge of the progress bar.
-    // The track name will begin at the halfway mark.
-    float artistTextX    = 15.0f;   // e.g. same as progressBarStartX
-    float artistTextY    = 23.0f;   // just below the progress bar (progressBarY=22)
-    float artistTextWidth = 25.0f;  // half of the progress bar width (50/2)
+    // Define explicit text regions.
+    float artistTextX    = 15.0f;         // same as progressBarStartX
+    float artistTextY    = 23.0f - 5.0f;    // now 18.0f (just below progress bar)
+    float artistTextWidth = 25.0f;          // half of progress bar width
 
-    float trackTextX     = 40.0f;   // halfway along the progress bar (15 + 25)
-    float trackTextY     = 23.0f;   // same vertical position as artist text
-    float trackTextWidth  = 25.0f;  // half of the progress bar width
+    float trackTextX     = 40.0f;          // halfway along progress bar
+    float trackTextY     = 23.0f - 5.0f;    // now 18.0f
+    float trackTextWidth  = 25.0f;          // half of progress bar width
 };
 
 class UI {
@@ -62,7 +62,7 @@ public:
     ~UI();
 
     void Initialize();
-    // Updated Render signature using unified scale and offsets.
+    // Render using unified scale and offsets.
     void Render(ImDrawList* draw_list,
                 BluetoothAudioManager& audioManager,
                 Sprite& sprite,
@@ -75,7 +75,6 @@ public:
     LayoutConfig& GetLayoutConfig() { return layout; }
 
 private:
-    // Artist & Track Text drawing.
     void DrawArtistAndTrackInfo(ImDrawList* draw_list,
                                 BluetoothAudioManager& audioManager,
                                 float scale,
@@ -99,7 +98,6 @@ private:
                       float offset_x,
                       float offset_y);
 
-    // Sun Volume Indicator drawing.
     void DrawVolumeSun(ImDrawList* draw_list,
                        BluetoothAudioManager& audioManager,
                        float scale,
