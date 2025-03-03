@@ -19,7 +19,7 @@ struct LayoutConfig {
     float progressBarStartX = 15.0f;
     float progressBarEndX   = 65.0f;
     float progressBarY      = 22.0f - 5.0f;    // originally 22, now 17.0
-    float timeTextYOffset   = 1.0f;
+    float timeTextYOffset   = 1.0f;            // (no longer used)
     float progressBarThickness = 0.25f;        // so that at scale=16, thickness=4 px
 
     // -----------------------
@@ -31,15 +31,22 @@ struct LayoutConfig {
     float spriteXCorrection = 0.250f;          // unchanged
 
     // -----------------------
-    // Sun/Moon Volume Indicator
+    // Sun/Moon Volume Indicator (Circular Path)
     // -----------------------
-    float sunX       = 60.0f;  
+    // We will compute the indicator's position along a circle whose horizontal center is the midpoint
+    // of the progress bar and whose vertical span is fixed.
+    // For our example, we define:
+    //   center_x = (progressBarStartX + progressBarEndX) / 2 = 40.
+    //   We want the top of the circle to be at 8 and the bottom at 17.
+    //   So radius R = (17 - 8)/2 = 4.5 and center_y = (8 + 17)/2 = 12.5.
+    float sunX       = 40.0f;  // (will use the progress bar center)
+    float indicatorCenterY = 12.5f; // computed center Y for the circle
+    float indicatorRadius  = 4.5f;  // radius of the circle
+
+    // We still keep the sunDiameter (for drawing the indicator's body) unchanged.
     float sunDiameter = 3.0f;   // ~48 px at scale=16
-    // For the indicator, shift sunMinY upward by 5.
-    float sunMinY    = 24.0f - 5.0f;   // originally 24, now 19.0
-    // sunMaxY is not used in the new mapping, but is kept here.
-    float sunMaxY    = 8.0f;
-    // The mask remains.
+    // The horizon (progress bar) is at progressBarY (17 virtual units).
+    // The mask remains as before.
     float sunMaskTop = 22.0f - 5.0f;    // now 17.0
     float sunMaskBottom = 30.0f - 5.0f; // now 25.0
 
@@ -48,12 +55,12 @@ struct LayoutConfig {
     // -----------------------
     float artistTextX    = 15.0f;         // same as progressBarStartX.
     float artistTextY    = 23.0f - 5.0f;    // originally 23, now 18.0.
-    float artistTextWidth = 25.0f;         // half of the progress bar width.
+    float artistTextWidth = 25.0f;         // half of progress bar width (50/2)
 
-    // For right-aligned track text, set its region's left edge to (progressBarEndX - trackTextWidth).
+    // Track text: right-aligned; its region starts at (progressBarEndX - trackTextWidth).
     float trackTextX     = 65.0f - 25.0f;   // i.e. 40.0f.
     float trackTextY     = 23.0f - 5.0f;      // now 18.0f.
-    float trackTextWidth  = 25.0f;          // half of the progress bar width.
+    float trackTextWidth  = 25.0f;          // half of progress bar width.
 };
 
 class UI {
@@ -71,7 +78,6 @@ public:
                 float offset_y);
     void Cleanup();
 
-    // Expose layout config for adjustments.
     LayoutConfig& GetLayoutConfig() { return layout; }
 
 private:
@@ -87,11 +93,7 @@ private:
                           float offset_x,
                           float offset_y);
 
-    void DrawTimeRemaining(ImDrawList* draw_list,
-                           BluetoothAudioManager& audioManager,
-                           float scale,
-                           float offset_x,
-                           float offset_y);
+    // We remove DrawTimeRemaining so that the track progress number is gone.
 
     void DrawMaskBars(ImDrawList* draw_list,
                       float scale,
