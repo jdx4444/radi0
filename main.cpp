@@ -102,6 +102,7 @@ int main(int, char**)
     ImGui::StyleColorsDark();
     ImGuiStyle& style = ImGui::GetStyle();
     style.WindowRounding = 0.0f;
+    // Optionally, change inner window padding if desired:
     style.WindowPadding = ImVec2(0, 0);
     style.Colors[ImGuiCol_WindowBg]      = ImVec4(0, 0, 0, 1);
     ImVec4 newColor = ImVec4(109/255.f, 254/255.f, 149/255.f, 1.0f);
@@ -184,14 +185,18 @@ int main(int, char**)
         // Update DBus audio manager
         audioManager.Update(io.DeltaTime);
 
-        // Draw a fullscreen ImGui window for the head unit UI
+        // Set a border padding value (in pixels) for the outer window.
+        float borderPadding = 10.0f;
+        ImGui::SetNextWindowPos(ImVec2(borderPadding, borderPadding));
+        ImGui::SetNextWindowSize(ImVec2(static_cast<float>(window_width) - 2 * borderPadding,
+                                        static_cast<float>(window_height) - 2 * borderPadding));
+
+        // Draw a fullscreen ImGui window for the head unit UI with the padding applied.
         ImGuiWindowFlags wf = ImGuiWindowFlags_NoResize |
                               ImGuiWindowFlags_NoMove |
                               ImGuiWindowFlags_NoTitleBar |
                               ImGuiWindowFlags_NoScrollbar |
                               ImGuiWindowFlags_NoScrollWithMouse;
-        ImGui::SetNextWindowPos(ImVec2(0, 0));
-        ImGui::SetNextWindowSize(ImVec2(static_cast<float>(window_width), static_cast<float>(window_height)));
         ImGui::Begin("Car Head Unit", nullptr, wf);
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
         // Pass unified scale and offsets

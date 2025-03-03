@@ -185,7 +185,7 @@ void UI::DrawVolumeSun(ImDrawList* draw_list,
     float d_max = std::fabs((layout.indicatorCenterY - layout.indicatorRadius) - horizonY);
     float normalized = (verticalDistance - d_min) / (d_max - d_min);
     normalized = std::min(std::max(normalized, 0.0f), 1.0f);
-    float perspectiveScale = 1.0f - normalized * 0.5f; // Varies from 1.0 at the horizon to 0.5 farther away.
+    float perspectiveScale = 1.0f - normalized * 0.9f; // Varies from 1.0 at the horizon to 0.5 farther away.
 
     if (vol >= 64.0f) {
         // Sun branch.
