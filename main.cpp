@@ -19,9 +19,6 @@
 static const float VIRTUAL_WIDTH = 80.0f;
 static const float VIRTUAL_HEIGHT = 30.0f;
 
-// Define the green color for the border (matching hex #6dfe95)
-const ImU32 BORDER_COLOR = IM_COL32(109, 254, 149, 255);
-
 int main(int, char**)
 {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0)
@@ -184,32 +181,21 @@ int main(int, char**)
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
-        // Set the ImGui window to cover the entire display.
-        ImGui::SetNextWindowPos(ImVec2(0, 0));
-        ImGui::SetNextWindowSize(ImVec2(static_cast<float>(window_width), static_cast<float>(window_height)));
+        // Update DBus audio manager
+        audioManager.Update(io.DeltaTime);
 
+        // Draw a fullscreen ImGui window for the head unit UI
         ImGuiWindowFlags wf = ImGuiWindowFlags_NoResize |
                               ImGuiWindowFlags_NoMove |
                               ImGuiWindowFlags_NoTitleBar |
                               ImGuiWindowFlags_NoScrollbar |
                               ImGuiWindowFlags_NoScrollWithMouse;
+        ImGui::SetNextWindowPos(ImVec2(0, 0));
+        ImGui::SetNextWindowSize(ImVec2(static_cast<float>(window_width), static_cast<float>(window_height)));
         ImGui::Begin("Car Head Unit", nullptr, wf);
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
-
-        // Render the UI content.
+        // Pass unified scale and offsets
         ui.Render(draw_list, audioManager, sprite, scale, offset_x, offset_y);
-
-        // Draw a custom border box that is inset from the window edge.
-        // Retrieve the border padding from the layout configuration.
-        float bp = ui.GetLayoutConfig().borderPadding;
-        // Use the window position and size (our ImGui window covers the full display).
-        ImVec2 windowPos = ImGui::GetWindowPos();
-        ImVec2 windowSize = ImGui::GetWindowSize();
-        ImVec2 borderTopLeft(windowPos.x + bp, windowPos.y + bp);
-        ImVec2 borderBottomRight(windowPos.x + windowSize.x - bp, windowPos.y + windowSize.y - bp);
-        // Draw the unfilled rectangle (the custom border) with a line thickness of 2.0f.
-        draw_list->AddRect(borderTopLeft, borderBottomRight, BORDER_COLOR, 0.0f, 0, 2.0f);
-
         ImGui::End();
 
         ImGui::Render();
