@@ -31,34 +31,35 @@ struct LayoutConfig {
     float spriteXCorrection = 0.250f;          // unchanged
 
     // -----------------------
-    // Sun Volume Indicator
+    // Sun/Moon Volume Indicator
     // -----------------------
     float sunX       = 60.0f;  
     float sunDiameter = 3.0f;   // ~48 px at scale=16
-    // Shift sunMinY upward by 5.
-    float sunMinY    = 24.0f - 5.0f;   // now 19.0f
-    // For the sun branch, sunMaxY remains as originally set for the sun.
-    float sunMaxY    = 8.0f;    // chosen so that at full volume, sun reaches 8.0 virtual units.
-    // The moon will mirror this: its "max" (lowest point) is defined as:
-    // moonMaxY = sunMinY + (sunMinY - sunMaxY)
-    // (That is, if sunMinY is 19 and sunMaxY is 8, then moonMaxY becomes 19+(19-8)=30.)
-    // Adjust the mask accordingly.
-    float sunMaskTop = 22.0f - 5.0f;    // now 17.0f
-    float sunMaskBottom = 30.0f - 5.0f; // now 25.0f
+    // For the sun branch, shift sunMinY up by 5.
+    float sunMinY    = 24.0f - 5.0f;   // originally 24, now 19.0
+    // At full volume, the sun's center should be at sunMaxY.
+    float sunMaxY    = 8.0f;    // chosen so that at vol=128, sun is at 8.0 virtual units.
+    // For the moon branch, we define a separate maximum (i.e. the peak the moon reaches when volume is 0).
+    // In our coordinate system (with increasing Y downward), a lower value means higher on the screen.
+    float moonMaxY   = 10.0f;   // e.g. at vol=0, the moon's center is at 10 virtual units.
+    // The indicator (sun or moon) should remain clamped to sunMinY for a small range (about 2 steps).
+    // We use tau = 0.125 (i.e. 8 volume units) for that.
+    // The mask remains as before (shifted up by 5).
+    float sunMaskTop = 22.0f - 5.0f;    // now 17.0
+    float sunMaskBottom = 30.0f - 5.0f; // now 25.0
 
     // -----------------------
     // Artist & Track Text
     // -----------------------
-    // Define explicit text regions (in virtual units).
-    // The artist name will appear on the left (starting at progressBarStartX).
-    // The track name will be right-aligned: its region starts at (progressBarEndX - trackTextWidth).
-    float artistTextX    = 15.0f;    // same as progressBarStartX.
-    float artistTextY    = 23.0f - 5.0f;   // originally 23, now 18.0.
-    float artistTextWidth = 25.0f;   // half of the progress bar width (50/2).
+    // Artist text appears on the left, starting at progressBarStartX.
+    float artistTextX    = 15.0f;         // same as progressBarStartX.
+    float artistTextY    = 23.0f - 5.0f;    // originally 23, now 18.0.
+    float artistTextWidth = 25.0f;         // half of progress bar width (50/2).
 
-    float trackTextX     = 65.0f - 25.0f; // right-aligned: (progressBarEndX - trackTextWidth), i.e. 40.0f.
-    float trackTextY     = 23.0f - 5.0f;    // now 18.0f.
-    float trackTextWidth  = 25.0f;   // half of the progress bar width.
+    // Track text is right-aligned: its region starts at (progressBarEndX - trackTextWidth).
+    float trackTextX     = 65.0f - 25.0f;   // i.e. 40.0f.
+    float trackTextY     = 23.0f - 5.0f;      // now 18.0f.
+    float trackTextWidth  = 25.0f;          // half of progress bar width.
 };
 
 class UI {
@@ -103,7 +104,7 @@ private:
                       float offset_x,
                       float offset_y);
 
-    // Sun Volume Indicator drawing.
+    // Sun/Moon Volume Indicator drawing.
     void DrawVolumeSun(ImDrawList* draw_list,
                        BluetoothAudioManager& audioManager,
                        float scale,
