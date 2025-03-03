@@ -26,36 +26,65 @@ void UI::Render(ImDrawList* draw_list,
     DrawProgressLine(draw_list, audioManager, scale, offset_x, offset_y);
     DrawTimeRemaining(draw_list, audioManager, scale, offset_x, offset_y);
     
-    // 2) Draw the sun that indicates volume, then its mask.
-    // Use quadratic interpolation so that at full volume the sun's Y becomes sunMaxY.
-    float t = static_cast<float>(audioManager.GetVolume()) / 128.0f;
-    float t2 = t * t;
-    float bx = layout.sunX - 10.0f * t2;  // deltaX remains 10 virtual units.
-    float by = layout.sunMinY - (layout.sunMinY - layout.sunMaxY) * t2;
-    ImVec2 sun_center = ToPixels(bx, by, scale, offset_x, offset_y);
-    
-    // Draw the sun's body using your original values.
-    float bodyScale = 0.25f;  // as provided.
-    float sun_radius_px = (layout.sunDiameter * bodyScale * scale) * 0.5f;
-    const ImU32 SUN_COLOR = COLOR_GREEN;
-    draw_list->AddCircleFilled(sun_center, sun_radius_px, SUN_COLOR, 32);
-    
-    // Draw rays as lines with a gap.
-    int numRays = 8;
-    float gap = 4.0f;             // Gap in pixels.
-    float rayLength = sun_radius_px * 1.0f; // Extend rays 1.0x beyond the gap.
-    float rayLineWidth = 1.0f;     // Ray thickness.
-    for (int i = 0; i < numRays; i++) {
-        float angle = (3.1415926f * 2.0f / numRays) * i;
-        ImVec2 rayStart(
-            sun_center.x + std::cos(angle) * (sun_radius_px + gap),
-            sun_center.y + std::sin(angle) * (sun_radius_px + gap)
-        );
-        ImVec2 rayEnd(
-            sun_center.x + std::cos(angle) * (sun_radius_px + gap + rayLength),
-            sun_center.y + std::sin(angle) * (sun_radius_px + gap + rayLength)
-        );
-        draw_list->AddLine(rayStart, rayEnd, SUN_COLOR, rayLineWidth);
+    // 2) Draw the volume indicator:
+    // Draw the sun if volume is 64 or above; otherwise, draw the moon.
+    float vol = static_cast<float>(audioManager.GetVolume());
+    if (vol >= 64.0f) {
+        // Sun: use t = (vol - 64) / 64, with quadratic easing.
+        float t = (vol - 64.0f) / 64.0f;
+        float t2 = t * t;
+        float deltaX = 10.0f;  // move left by 10 virtual units at full volume.
+        float bx = layout.sunX - deltaX * t2;
+        float by = layout.sunMinY - (layout.sunMinY - layout.sunMaxY) * t2;
+        ImVec2 sun_center = ToPixels(bx, by, scale, offset_x, offset_y);
+        float bodyScale = 0.25f;  // as provided.
+        float sun_radius_px = (layout.sunDiameter * bodyScale * scale) * 0.5f;
+        draw_list->AddCircleFilled(sun_center, sun_radius_px, COLOR_GREEN, 32);
+        int numRays = 8;
+        float gap = 4.0f;             // gap in pixels
+        float rayLength = sun_radius_px * 1.0f; // extend rays 1.0x beyond gap
+        float rayLineWidth = 1.0f;
+        for (int i = 0; i < numRays; i++) {
+            float angle = (3.1415926f * 2.0f / numRays) * i;
+            ImVec2 rayStart(
+                sun_center.x + std::cos(angle) * (sun_radius_px + gap),
+                sun_center.y + std::sin(angle) * (sun_radius_px + gap)
+            );
+            ImVec2 rayEnd(
+                sun_center.x + std::cos(angle) * (sun_radius_px + gap + rayLength),
+                sun_center.y + std::sin(angle) * (sun_radius_px + gap + rayLength)
+            );
+            draw_list->AddLine(rayStart, rayEnd, COLOR_GREEN, rayLineWidth);
+        }
+    } else {
+        // Moon: for volumes below 64, use t = (64 - vol) / 64.
+        float t = (64.0f - vol) / 64.0f;
+        float t2 = t * t;
+        float deltaX = 10.0f;  // same deltaX for mirroring.
+        float bx = layout.sunX - deltaX * t2;
+        float by = layout.sunMinY - (layout.sunMinY - layout.sunMaxY) * t2;
+        // Mirror the X position around the center (assumed at 40 virtual units)
+        float bx_moon = 2 * 40.0f - bx;
+        ImVec2 moon_center = ToPixels(bx_moon, by, scale, offset_x, offset_y);
+        float bodyScale = 0.25f;
+        float moon_radius_px = (layout.sunDiameter * bodyScale * scale) * 0.5f;
+        draw_list->AddCircleFilled(moon_center, moon_radius_px, COLOR_GREEN, 32);
+        int numRays = 8;
+        float gap = 4.0f;
+        float rayLength = moon_radius_px * 1.0f;
+        float rayLineWidth = 1.0f;
+        for (int i = 0; i < numRays; i++) {
+            float angle = (3.1415926f * 2.0f / numRays) * i;
+            ImVec2 rayStart(
+                moon_center.x + std::cos(angle) * (moon_radius_px + gap),
+                moon_center.y + std::sin(angle) * (moon_radius_px + gap)
+            );
+            ImVec2 rayEnd(
+                moon_center.x + std::cos(angle) * (moon_radius_px + gap + rayLength),
+                moon_center.y + std::sin(angle) * (moon_radius_px + gap + rayLength)
+            );
+            draw_list->AddLine(rayStart, rayEnd, COLOR_GREEN, rayLineWidth);
+        }
     }
     
     DrawSunMask(draw_list, scale, offset_x, offset_y);
@@ -82,15 +111,6 @@ void UI::Cleanup()
     // No cleanup needed.
 }
 
-/**
- * DrawArtistAndTrackInfo:
- * Uses explicit layout values from LayoutConfig.
- * The artist text is drawn in the region starting at (artistTextX, artistTextY)
- * with a maximum width of artistTextWidth.
- * The track text is drawn in the region starting at (trackTextX, trackTextY)
- * with a maximum width of trackTextWidth.
- * If the text exceeds the available width, it scrolls.
- */
 void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
                                 BluetoothAudioManager& audioManager,
                                 float scale,
@@ -102,10 +122,9 @@ void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
     if (artist_name.empty()) artist_name = "Unknown Artist";
     if (track_name.empty()) track_name  = "Unknown Track";
 
-    // Artist text region.
+    // Artist text region (left side)
     ImVec2 artistPos = ToPixels(layout.artistTextX, layout.artistTextY, scale, offset_x, offset_y);
     float artistRegionWidth_px = layout.artistTextWidth * scale;
-
     ImGui::SetWindowFontScale(1.6f);
     ImVec2 artistTextSize = ImGui::CalcTextSize(artist_name.c_str());
     static float artist_scroll_offset = 0.0f;
@@ -125,11 +144,10 @@ void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
     draw_list->PopClipRect();
     ImGui::SetWindowFontScale(1.0f);
 
-    // Track text region.
+    // Track text region (right side), right-aligned.
     ImVec2 trackPos = ToPixels(layout.trackTextX, layout.trackTextY, scale, offset_x, offset_y);
     float trackRegionWidth_px = layout.trackTextWidth * scale;
-
-    ImGui::SetWindowFontScale(1.6f);  // Same font scale as artist.
+    ImGui::SetWindowFontScale(1.6f);  // same font scale as artist.
     ImVec2 trackTextSize = ImGui::CalcTextSize(track_name.c_str());
     static float track_scroll_offset = 0.0f;
     if (trackTextSize.x > trackRegionWidth_px) {
@@ -142,7 +160,10 @@ void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
     ImVec2 trackClipMin = trackPos;
     ImVec2 trackClipMax = ImVec2(trackPos.x + trackRegionWidth_px, trackPos.y + trackTextSize.y);
     draw_list->PushClipRect(trackClipMin, trackClipMax, true);
-    ImGui::SetCursorPos(ImVec2(trackPos.x - track_scroll_offset, trackPos.y));
+    // Right-align: set the cursor so that the text's right edge aligns with trackPos.x + trackRegionWidth_px.
+    float textOffset = trackTextSize.x - trackRegionWidth_px;
+    if (textOffset < 0) textOffset = 0;
+    ImGui::SetCursorPos(ImVec2(trackPos.x - track_scroll_offset - textOffset, trackPos.y));
     ImGui::TextUnformatted(track_name.c_str());
     draw_list->PopClipRect();
     ImGui::SetWindowFontScale(1.0f);
@@ -209,42 +230,63 @@ void UI::DrawVolumeSun(ImDrawList* draw_list,
                        float offset_x,
                        float offset_y)
 {
-    // Use t = (volume/128) and then t² for easing.
-    float t = static_cast<float>(audioManager.GetVolume()) / 128.0f;
-    float t2 = t * t;
-
-    // Compute sun position in virtual coordinates.
-    // At volume=0: (sunX, sunMinY)
-    // At volume=1: (sunX - deltaX, sunMinY - (sunMinY - sunMaxY))
-    float deltaX = 10.0f;  // move left by 10 virtual units at full volume.
-    float bx = layout.sunX - deltaX * t2;
-    float by = layout.sunMinY - (layout.sunMinY - layout.sunMaxY) * t2;
-
-    ImVec2 sun_center = ToPixels(bx, by, scale, offset_x, offset_y);
-
-    // Draw the sun's body.
-    float bodyScale = 0.25f;  // as provided.
-    float sun_radius_px = (layout.sunDiameter * bodyScale * scale) * 0.5f;
-
-    const ImU32 SUN_COLOR = COLOR_GREEN;
-    draw_list->AddCircleFilled(sun_center, sun_radius_px, SUN_COLOR, 32);
-
-    // Draw rays as lines with a gap.
-    int numRays = 8;
-    float gap = 4.0f;             // Gap in pixels between the sun's edge and the ray.
-    float rayLength = sun_radius_px * 1.0f; // Extend rays 1.0x beyond the gap.
-    float rayLineWidth = 1.0f;     // Thickness of the ray.
-    for (int i = 0; i < numRays; i++) {
-        float angle = (3.1415926f * 2.0f / numRays) * i;
-        ImVec2 rayStart(
-            sun_center.x + std::cos(angle) * (sun_radius_px + gap),
-            sun_center.y + std::sin(angle) * (sun_radius_px + gap)
-        );
-        ImVec2 rayEnd(
-            sun_center.x + std::cos(angle) * (sun_radius_px + gap + rayLength),
-            sun_center.y + std::sin(angle) * (sun_radius_px + gap + rayLength)
-        );
-        draw_list->AddLine(rayStart, rayEnd, SUN_COLOR, rayLineWidth);
+    float vol = static_cast<float>(audioManager.GetVolume());
+    // If volume is 64 or above, draw the sun; if below 64, draw the moon.
+    if (vol >= 64.0f) {
+        float t = (vol - 64.0f) / 64.0f;
+        float t2 = t * t;
+        float deltaX = 10.0f;  // move left by 10 virtual units at full volume.
+        float bx = layout.sunX - deltaX * t2;
+        float by = layout.sunMinY - (layout.sunMinY - layout.sunMaxY) * t2;
+        ImVec2 sun_center = ToPixels(bx, by, scale, offset_x, offset_y);
+        float bodyScale = 0.25f;  // as provided.
+        float sun_radius_px = (layout.sunDiameter * bodyScale * scale) * 0.5f;
+        draw_list->AddCircleFilled(sun_center, sun_radius_px, COLOR_GREEN, 32);
+        int numRays = 8;
+        float gap = 4.0f;
+        float rayLength = sun_radius_px * 1.0f;
+        float rayLineWidth = 1.0f;
+        for (int i = 0; i < numRays; i++) {
+            float angle = (3.1415926f * 2.0f / numRays) * i;
+            ImVec2 rayStart(
+                sun_center.x + std::cos(angle) * (sun_radius_px + gap),
+                sun_center.y + std::sin(angle) * (sun_radius_px + gap)
+            );
+            ImVec2 rayEnd(
+                sun_center.x + std::cos(angle) * (sun_radius_px + gap + rayLength),
+                sun_center.y + std::sin(angle) * (sun_radius_px + gap + rayLength)
+            );
+            draw_list->AddLine(rayStart, rayEnd, COLOR_GREEN, rayLineWidth);
+        }
+    } else {
+        // Draw the moon (mirrored horizontally relative to a center of 40 virtual units).
+        float t = (64.0f - vol) / 64.0f;
+        float t2 = t * t;
+        float deltaX = 10.0f;
+        float bx = layout.sunX - deltaX * t2;
+        float by = layout.sunMinY - (layout.sunMinY - layout.sunMaxY) * t2;
+        // Mirror the X coordinate around virtual center = 40.
+        float bx_moon = 2 * 40.0f - bx;
+        ImVec2 moon_center = ToPixels(bx_moon, by, scale, offset_x, offset_y);
+        float bodyScale = 0.25f;
+        float moon_radius_px = (layout.sunDiameter * bodyScale * scale) * 0.5f;
+        draw_list->AddCircleFilled(moon_center, moon_radius_px, COLOR_GREEN, 32);
+        int numRays = 8;
+        float gap = 4.0f;
+        float rayLength = moon_radius_px * 1.0f;
+        float rayLineWidth = 1.0f;
+        for (int i = 0; i < numRays; i++) {
+            float angle = (3.1415926f * 2.0f / numRays) * i;
+            ImVec2 rayStart(
+                moon_center.x + std::cos(angle) * (moon_radius_px + gap),
+                moon_center.y + std::sin(angle) * (moon_radius_px + gap)
+            );
+            ImVec2 rayEnd(
+                moon_center.x + std::cos(angle) * (moon_radius_px + gap + rayLength),
+                moon_center.y + std::sin(angle) * (moon_radius_px + gap + rayLength)
+            );
+            draw_list->AddLine(rayStart, rayEnd, COLOR_GREEN, rayLineWidth);
+        }
     }
 }
 
