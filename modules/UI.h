@@ -19,7 +19,6 @@ struct LayoutConfig {
     float progressBarStartX = 15.0f;
     float progressBarEndX   = 65.0f;
     float progressBarY      = 22.0f - 5.0f;    // originally 22, now 17.0
-    // We no longer display the track progress number.
     float progressBarThickness = 0.25f;        // so that at scale=16, thickness=4 px
 
     // -----------------------
@@ -33,32 +32,29 @@ struct LayoutConfig {
     // -----------------------
     // Volume Indicator (Sun/Moon) – Circular Path
     // -----------------------
-    // We'll define a circle along which the volume indicator moves.
-    // The circle is centered horizontally at 40.0 (the midpoint of progressBarStartX and progressBarEndX).
-    // We want the circle's bottom to be just below the progress bar.
-    // 
     float indicatorCenterX = 40.0f;
-    float indicatorCenterY = 8.5f;  // new: lowered to get a larger circle
-    float indicatorRadius  = 10.0f;   // new: 2x the previous radius
+    float indicatorCenterY = 8.5f;  
+    float indicatorRadius  = 10.0f;  
 
-    // We keep sunDiameter as before.
     float sunDiameter = 3.0f;   // ~48 px at scale=16
-
-    // The horizon mask remains unchanged.
     float sunMaskTop = 22.0f - 5.0f;    // now 17.0
     float sunMaskBottom = 30.0f - 5.0f; // now 25.0
 
     // -----------------------
     // Artist & Track Text
     // -----------------------
-    float artistTextX    = 15.0f;         // same as progressBarStartX.
-    float artistTextY    = 23.0f - 5.0f;    // originally 23, now 18.0.
-    float artistTextWidth = 25.0f;         // half of the progress bar width (50/2)
+    float artistTextX    = 15.0f;
+    float artistTextY    = 23.0f - 5.0f;   // now 18.0.
+    float artistTextWidth = 25.0f;
 
-    // Track text is right-aligned: its region starts at (progressBarEndX - trackTextWidth).
-    float trackTextX     = 65.0f - 25.0f;   // i.e. 40.0f.
-    float trackTextY     = 23.0f - 5.0f;      // now 18.0f.
-    float trackTextWidth  = 25.0f;          // half of the progress bar width.
+    float trackTextX     = 65.0f - 25.0f;  // i.e. 40.0f.
+    float trackTextY     = 23.0f - 5.0f;     // now 18.0f.
+    float trackTextWidth  = 25.0f;
+
+    // -----------------------
+    // New: Border Padding for UI
+    // -----------------------
+    float borderPadding = 2.0f;  // Padding in virtual units.
 };
 
 class UI {

@@ -18,7 +18,6 @@ void UI::Initialize()
     // No special initialization needed.
 }
 
-// Render order: first draw volume indicator (sun/moon) behind the progress line.
 void UI::Render(ImDrawList* draw_list,
                 BluetoothAudioManager& audioManager,
                 Sprite& sprite,
@@ -47,6 +46,17 @@ void UI::Render(ImDrawList* draw_list,
     
     // 4) Draw the artist and track info on top.
     DrawArtistAndTrackInfo(draw_list, audioManager, scale, offset_x, offset_y);
+
+    // 5) Draw the custom border using the configurable padding.
+    float padding = layout.borderPadding;  // in virtual units
+    float virtualWidth = 80.0f;   // virtual display width
+    float virtualHeight = 30.0f;  // virtual display height
+
+    ImVec2 borderTopLeft = ToPixels(padding, padding, scale, offset_x, offset_y);
+    ImVec2 borderBottomRight = ToPixels(virtualWidth - padding, virtualHeight - padding, scale, offset_x, offset_y);
+
+    // Draw the rectangle border with thickness 2.0f.
+    draw_list->AddRect(borderTopLeft, borderBottomRight, COLOR_GREEN, 0.0f, 0, 2.0f);
 }
 
 void UI::Cleanup()
@@ -103,7 +113,6 @@ void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
     ImVec2 trackClipMin = trackPos;
     ImVec2 trackClipMax = ImVec2(trackPos.x + trackRegionWidth_px, trackPos.y + trackTextSize.y);
     draw_list->PushClipRect(trackClipMin, trackClipMax, true);
-    // Right-align: shift so the text's right edge is flush with the region's right edge.
     float textOffset = trackTextSize.x - trackRegionWidth_px;
     if (textOffset < 0) textOffset = 0;
     ImGui::SetCursorPos(ImVec2(trackPos.x - track_scroll_offset - textOffset, trackPos.y));
@@ -147,17 +156,12 @@ void UI::DrawMaskBars(ImDrawList* draw_list,
     draw_list->AddRectFilled(right_top, right_bot, COLOR_BLACK);
 }
 
-//
-// DrawVolumeSun: Draws the volume indicator along a fixed circular path with a perspective
-// effect that scales the sun/moon larger near the horizon (progress bar) and smaller when farther away.
-//
 void UI::DrawVolumeSun(ImDrawList* draw_list,
                        BluetoothAudioManager& audioManager,
                        float scale,
                        float offset_x,
                        float offset_y)
 {
-    // Use the circle parameters from LayoutConfig.
     float C_x = layout.indicatorCenterX;
     float C_y = layout.indicatorCenterY;
     float R   = layout.indicatorRadius;
@@ -165,37 +169,32 @@ void UI::DrawVolumeSun(ImDrawList* draw_list,
     float x, y;
 
     if (vol >= 64.0f) {
-        // Sun branch: compute position based on volume.
-        float t = (vol - 64.0f) / 64.0f;  // t in [0,1]
-        float theta = (PI / 2.0f) - ((PI / 2.0f) * t);  // theta from 90° to 0°
+        float t = (vol - 64.0f) / 64.0f;
+        float theta = (PI / 2.0f) - ((PI / 2.0f) * t);
         x = C_x + R * std::cos(theta);
         y = C_y + R * std::sin(theta);
     } else {
-        // Moon branch: compute position based on volume.
-        float t = (64.0f - vol) / 64.0f;  // t in [0,1]
-        float theta = (PI / 2.0f) + ((PI / 2.0f) * t);  // theta from 90° to 180°
+        float t = (64.0f - vol) / 64.0f;
+        float theta = (PI / 2.0f) + ((PI / 2.0f) * t);
         x = C_x + R * std::cos(theta);
         y = C_y + R * std::sin(theta);
     }
 
-    // Calculate perspective scale based on the vertical distance from the horizon (progress bar).
     float horizonY = layout.progressBarY;
     float verticalDistance = std::fabs(y - horizonY);
     float d_min = std::fabs((layout.indicatorCenterY + layout.indicatorRadius) - horizonY);
     float d_max = std::fabs((layout.indicatorCenterY - layout.indicatorRadius) - horizonY);
     float normalized = (verticalDistance - d_min) / (d_max - d_min);
     normalized = std::min(std::max(normalized, 0.0f), 1.0f);
-    float perspectiveScale = 1.0f - normalized * 0.9f; // Varies from 1.0 at the horizon to 0.5 farther away.
+    float perspectiveScale = 1.0f - normalized * 0.9f;
 
     if (vol >= 64.0f) {
-        // Sun branch.
         ImVec2 sun_center = ToPixels(x, y, scale, offset_x, offset_y);
-        float bodyScale = 0.4f;  // Base scale for the sun.
+        float bodyScale = 0.4f;
         float finalScale = bodyScale * perspectiveScale;
         float sun_radius_px = (layout.sunDiameter * finalScale * scale) * 0.5f;
         draw_list->AddCircleFilled(sun_center, sun_radius_px, COLOR_GREEN, 32);
         
-        // Draw the sun's rays.
         int numRays = 8;
         float gap = 4.0f;
         float rayLength = sun_radius_px * 1.0f;
@@ -213,13 +212,11 @@ void UI::DrawVolumeSun(ImDrawList* draw_list,
             draw_list->AddLine(rayStart, rayEnd, COLOR_GREEN, rayLineWidth);
         }
     } else {
-        // Moon branch.
         ImVec2 moon_center = ToPixels(x, y, scale, offset_x, offset_y);
-        float bodyScale = 0.75f; // Base scale for the moon.
+        float bodyScale = 0.75f;
         float finalScale = bodyScale * perspectiveScale;
         float moon_radius_px = (layout.sunDiameter * finalScale * scale) * 0.5f;
         draw_list->AddCircleFilled(moon_center, moon_radius_px, COLOR_GREEN, 32);
-        // Draw a crescent by overlaying an offset black circle.
         ImVec2 offsetVec = ImVec2(moon_radius_px * 0.4f, -moon_radius_px * 0.2f);
         ImVec2 cutoutCenter = ImVec2(moon_center.x + offsetVec.x, moon_center.y + offsetVec.y);
         draw_list->AddCircleFilled(cutoutCenter, moon_radius_px, COLOR_BLACK, 32);
