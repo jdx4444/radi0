@@ -23,7 +23,9 @@ void UI::Render(ImDrawList* draw_list,
                 Sprite& sprite,
                 float scale,
                 float offset_x,
-                float offset_y)
+                float offset_y,
+                int window_width,
+                int window_height)
 {
     // 1) Draw the volume indicator (sun/moon) behind the progress line.
     DrawVolumeSun(draw_list, audioManager, scale, offset_x, offset_y);
@@ -47,15 +49,15 @@ void UI::Render(ImDrawList* draw_list,
     // 4) Draw the artist and track info on top.
     DrawArtistAndTrackInfo(draw_list, audioManager, scale, offset_x, offset_y);
 
-    // 5) Draw the custom border using the configurable padding.
-    float padding = layout.borderPadding;  // in virtual units
-    float virtualWidth = 80.0f;   // virtual display width
-    float virtualHeight = 30.0f;  // virtual display height
+    // 5) Draw the custom border relative to the physical display edges.
+    // Convert 2.0 virtual units into physical pixels for each axis and round.
+    float padX = std::round(layout.borderPadding * (window_width / 80.0f));
+    float padY = std::round(layout.borderPadding * (window_height / 25.0f));
 
-    ImVec2 borderTopLeft = ToPixels(padding, padding, scale, offset_x, offset_y);
-    ImVec2 borderBottomRight = ToPixels(virtualWidth - padding, virtualHeight - padding, scale, offset_x, offset_y);
+    ImVec2 borderTopLeft(padX, padY);
+    ImVec2 borderBottomRight(window_width - padX, window_height - padY);
 
-    // Draw the rectangle border with thickness 2.0f.
+    // Draw the rectangle border with a thickness of 2.0f.
     draw_list->AddRect(borderTopLeft, borderBottomRight, COLOR_GREEN, 0.0f, 0, 2.0f);
 }
 

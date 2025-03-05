@@ -6,7 +6,7 @@
 #include "Sprite.h"
 #include "Utilities.h"
 
-// Layout configuration structure (virtual coordinates in an 80×30 space)
+// Layout configuration structure (virtual coordinates in an 80×25 space)
 struct LayoutConfig {
     // -----------------------
     // Track Info + Progress Bar
@@ -63,13 +63,15 @@ public:
     ~UI();
 
     void Initialize();
-    // Render using unified scale and offsets.
+    // Updated Render signature to include physical window dimensions.
     void Render(ImDrawList* draw_list,
                 BluetoothAudioManager& audioManager,
                 Sprite& sprite,
                 float scale,
                 float offset_x,
-                float offset_y);
+                float offset_y,
+                int window_width,
+                int window_height);
     void Cleanup();
 
     LayoutConfig& GetLayoutConfig() { return layout; }

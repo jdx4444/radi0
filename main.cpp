@@ -15,9 +15,9 @@
 #include "modules/UI.h"
 #include <algorithm> // for std::min
 
-// Define an 8:3 virtual coordinate system (80×30)
+// Define a virtual coordinate system that matches the display's aspect ratio (80×25)
 static const float VIRTUAL_WIDTH = 80.0f;
-static const float VIRTUAL_HEIGHT = 30.0f;
+static const float VIRTUAL_HEIGHT = 25.0f;
 
 int main(int, char**)
 {
@@ -194,8 +194,8 @@ int main(int, char**)
         ImGui::SetNextWindowSize(ImVec2(static_cast<float>(window_width), static_cast<float>(window_height)));
         ImGui::Begin("Car Head Unit", nullptr, wf);
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
-        // Pass unified scale and offsets
-        ui.Render(draw_list, audioManager, sprite, scale, offset_x, offset_y);
+        // Pass unified scale, offsets, and physical dimensions to UI
+        ui.Render(draw_list, audioManager, sprite, scale, offset_x, offset_y, window_width, window_height);
         ImGui::End();
 
         ImGui::Render();
