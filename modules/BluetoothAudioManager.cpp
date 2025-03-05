@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <dbus/dbus.h>
+#include <thread> // NEW: For asynchronous volume update
 
 // Helper method to call a DBus method.
 static DBusMessage* CallMethod(DBusConnection* conn, const char* destination, const char* path,
@@ -575,5 +576,8 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
 void BluetoothAudioManager::SendVolumeUpdate(int vol) {
     int percentage = (vol * 100) / 128;
     std::string command = "amixer set Master " + std::to_string(percentage) + "%";
-    std::system(command.c_str());
+    // Execute the amixer command asynchronously so that the main thread isn't blocked.
+    std::thread([command](){
+        std::system(command.c_str());
+    }).detach();
 }
