@@ -575,8 +575,9 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
 
 void BluetoothAudioManager::SendVolumeUpdate(int vol) {
     int percentage = (vol * 100) / 128;
-    std::string command = "amixer set Master " + std::to_string(percentage) + "%";
-    // Execute the amixer command asynchronously so that the main thread isn't blocked.
+    // Use pactl to adjust the volume of the default (analog) sink
+    std::string command = "pactl set-sink-volume alsa_output.platform-bcm2835_audio.analog-stereo " 
+                          + std::to_string(percentage) + "%";
     std::thread([command](){
         std::system(command.c_str());
     }).detach();
