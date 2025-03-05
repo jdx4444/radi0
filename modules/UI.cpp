@@ -50,26 +50,26 @@ void UI::Render(ImDrawList* draw_list,
     DrawArtistAndTrackInfo(draw_list, audioManager, scale, offset_x, offset_y);
 
     // 5) Draw the custom outer border relative to the physical display edges.
-    // Horizontal padding remains the same (using 2.0 virtual units),
+    // Outer border horizontal padding is computed from 2.0 virtual units,
     // but vertical padding is reduced by 1.0 virtual unit.
     float padX = std::round(layout.borderPadding * (window_width / 80.0f));
-    float padY = std::round((layout.borderPadding - 1.0f) * (window_height / 25.0f)); // reduced vertically
-
+    float padY = std::round((layout.borderPadding - 1.0f) * (window_height / 25.0f));
+    
     ImVec2 borderTopLeft(padX, padY);
     ImVec2 borderBottomRight(window_width - padX, window_height - padY);
-
-    // Outer border drawn with thickness 2.0f.
+    
+    // Outer border drawn with a thickness of 2.0f.
     draw_list->AddRect(borderTopLeft, borderBottomRight, COLOR_GREEN, 0.0f, 0, 2.0f);
-
+    
     // 6) Draw an inner border inside the outer border.
-    // The inner border uses half the padding relative to the outer border.
-    float innerPadX = std::round((layout.borderPadding / 2.0f) * (window_width / 80.0f));
-    float innerPadY = std::round(((layout.borderPadding - 1.0f) / 2.0f) * (window_height / 25.0f)); // half of the adjusted vertical pad
-
+    // Here we maintain the full 2.0 virtual unit padding.
+    float innerPadX = std::round(layout.borderPadding * (window_width / 80.0f));
+    float innerPadY = std::round(layout.borderPadding * (window_height / 25.0f));
+    
     ImVec2 innerBorderTopLeft(borderTopLeft.x + innerPadX, borderTopLeft.y + innerPadY);
     ImVec2 innerBorderBottomRight(borderBottomRight.x - innerPadX, borderBottomRight.y - innerPadY);
-
-    // Inner border drawn with thickness 1.0f.
+    
+    // Inner border drawn with a thickness of 1.0f.
     draw_list->AddRect(innerBorderTopLeft, innerBorderBottomRight, COLOR_GREEN, 0.0f, 0, 1.0f);
 }
 
@@ -88,7 +88,7 @@ void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
     std::string track_name  = audioManager.GetCurrentTrackTitle();
     if (artist_name.empty()) artist_name = "Unknown Artist";
     if (track_name.empty()) track_name  = "Unknown Track";
-
+    
     // Artist text region.
     ImVec2 artistPos = ToPixels(layout.artistTextX, layout.artistTextY, scale, offset_x, offset_y);
     float artistRegionWidth_px = layout.artistTextWidth * scale;
@@ -110,7 +110,7 @@ void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
     ImGui::TextUnformatted(artist_name.c_str());
     draw_list->PopClipRect();
     ImGui::SetWindowFontScale(1.0f);
-
+    
     // Track text region (right-aligned).
     ImVec2 trackPos = ToPixels(layout.trackTextX, layout.trackTextY, scale, offset_x, offset_y);
     float trackRegionWidth_px = layout.trackTextWidth * scale;
@@ -181,7 +181,7 @@ void UI::DrawVolumeSun(ImDrawList* draw_list,
     float R   = layout.indicatorRadius;
     float vol = static_cast<float>(audioManager.GetVolume());
     float x, y;
-
+    
     if (vol >= 64.0f) {
         float t = (vol - 64.0f) / 64.0f;
         float theta = (PI / 2.0f) - ((PI / 2.0f) * t);
@@ -193,7 +193,7 @@ void UI::DrawVolumeSun(ImDrawList* draw_list,
         x = C_x + R * std::cos(theta);
         y = C_y + R * std::sin(theta);
     }
-
+    
     float horizonY = layout.progressBarY;
     float verticalDistance = std::fabs(y - horizonY);
     float d_min = std::fabs((layout.indicatorCenterY + layout.indicatorRadius) - horizonY);
@@ -201,7 +201,7 @@ void UI::DrawVolumeSun(ImDrawList* draw_list,
     float normalized = (verticalDistance - d_min) / (d_max - d_min);
     normalized = std::min(std::max(normalized, 0.0f), 1.0f);
     float perspectiveScale = 1.0f - normalized * 0.9f;
-
+    
     if (vol >= 64.0f) {
         ImVec2 sun_center = ToPixels(x, y, scale, offset_x, offset_y);
         float bodyScale = 0.4f;

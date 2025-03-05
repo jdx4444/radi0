@@ -27,7 +27,7 @@ struct LayoutConfig {
     float spriteXOffset     = 0.0f;
     float spriteYOffset     = -8.0f;           // unchanged
     float spriteBaseY       = 28.25f - 5.0f;     // originally 28.25, now 23.25
-    float spriteXCorrection = 0.250f;          // unchanged
+    float spriteXCorrection = -0.150f;          // unchanged
 
     // -----------------------
     // Volume Indicator (Sun/Moon) – Circular Path
