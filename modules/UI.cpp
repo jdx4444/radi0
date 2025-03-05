@@ -50,9 +50,10 @@ void UI::Render(ImDrawList* draw_list,
     DrawArtistAndTrackInfo(draw_list, audioManager, scale, offset_x, offset_y);
 
     // 5) Draw the custom outer border relative to the physical display edges.
-    // Convert 2.0 virtual units into physical pixels for each axis and round.
+    // Horizontal padding remains the same (using 2.0 virtual units),
+    // but vertical padding is reduced by 1.0 virtual unit.
     float padX = std::round(layout.borderPadding * (window_width / 80.0f));
-    float padY = std::round(layout.borderPadding * (window_height / 25.0f));
+    float padY = std::round((layout.borderPadding - 1.0f) * (window_height / 25.0f)); // reduced vertically
 
     ImVec2 borderTopLeft(padX, padY);
     ImVec2 borderBottomRight(window_width - padX, window_height - padY);
@@ -61,9 +62,9 @@ void UI::Render(ImDrawList* draw_list,
     draw_list->AddRect(borderTopLeft, borderBottomRight, COLOR_GREEN, 0.0f, 0, 2.0f);
 
     // 6) Draw an inner border inside the outer border.
-    // Use half the virtual padding and half the line weight.
+    // The inner border uses half the padding relative to the outer border.
     float innerPadX = std::round((layout.borderPadding / 2.0f) * (window_width / 80.0f));
-    float innerPadY = std::round((layout.borderPadding / 2.0f) * (window_height / 25.0f));
+    float innerPadY = std::round(((layout.borderPadding - 1.0f) / 2.0f) * (window_height / 25.0f)); // half of the adjusted vertical pad
 
     ImVec2 innerBorderTopLeft(borderTopLeft.x + innerPadX, borderTopLeft.y + innerPadY);
     ImVec2 innerBorderBottomRight(borderBottomRight.x - innerPadX, borderBottomRight.y - innerPadY);
