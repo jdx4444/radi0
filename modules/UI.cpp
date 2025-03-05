@@ -49,7 +49,7 @@ void UI::Render(ImDrawList* draw_list,
     // 4) Draw the artist and track info on top.
     DrawArtistAndTrackInfo(draw_list, audioManager, scale, offset_x, offset_y);
 
-    // 5) Draw the custom border relative to the physical display edges.
+    // 5) Draw the custom outer border relative to the physical display edges.
     // Convert 2.0 virtual units into physical pixels for each axis and round.
     float padX = std::round(layout.borderPadding * (window_width / 80.0f));
     float padY = std::round(layout.borderPadding * (window_height / 25.0f));
@@ -57,8 +57,19 @@ void UI::Render(ImDrawList* draw_list,
     ImVec2 borderTopLeft(padX, padY);
     ImVec2 borderBottomRight(window_width - padX, window_height - padY);
 
-    // Draw the rectangle border with a thickness of 2.0f.
+    // Outer border drawn with thickness 2.0f.
     draw_list->AddRect(borderTopLeft, borderBottomRight, COLOR_GREEN, 0.0f, 0, 2.0f);
+
+    // 6) Draw an inner border inside the outer border.
+    // Use half the virtual padding and half the line weight.
+    float innerPadX = std::round((layout.borderPadding / 2.0f) * (window_width / 80.0f));
+    float innerPadY = std::round((layout.borderPadding / 2.0f) * (window_height / 25.0f));
+
+    ImVec2 innerBorderTopLeft(borderTopLeft.x + innerPadX, borderTopLeft.y + innerPadY);
+    ImVec2 innerBorderBottomRight(borderBottomRight.x - innerPadX, borderBottomRight.y - innerPadY);
+
+    // Inner border drawn with thickness 1.0f.
+    draw_list->AddRect(innerBorderTopLeft, innerBorderBottomRight, COLOR_GREEN, 0.0f, 0, 1.0f);
 }
 
 void UI::Cleanup()
