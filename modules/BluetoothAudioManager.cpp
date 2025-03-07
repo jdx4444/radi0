@@ -277,29 +277,39 @@ PlaybackState BluetoothAudioManager::GetState() const {
 // Update and Playback Fraction
 // -----------------------------------------------------------------------------
 void BluetoothAudioManager::Update(float delta_time) {
-    // Process any pending DBus messages.
+    // Always process pending DBus messages.
     ProcessPendingDBusMessages();
 
-    // If no MediaPlayer1 is found, try to refresh every 1 second.
-    if (current_player_path.empty()) {
-        static float refresh_timer = 0.0f;
-        refresh_timer += delta_time;
-        if (refresh_timer >= 1.0f) {
-            refresh_timer = 0.0f;
-            if (GetManagedObjects() && !current_player_path.empty()) {
-                std::cout << "DEBUG: New MediaPlayer1 found: " << current_player_path << "\n";
-                // Optionally, you could automatically start playback here:
-                // Play();
-            }
+    // Periodic refresh: every 1 second, check for connection/disconnection.
+    static float refresh_timer = 0.0f;
+    refresh_timer += delta_time;
+    if (refresh_timer >= 1.0f) {
+        refresh_timer = 0.0f;
+        // Save the current connection state.
+        std::string old_player = current_player_path;
+        // Clear the current player so that GetManagedObjects() sets it fresh.
+        current_player_path = "";
+        bool found = GetManagedObjects(); // This call sets current_player_path if a device is present.
+        if (!old_player.empty() && current_player_path.empty()) {
+            // Device was connected but now is gone.
+            std::cout << "DEBUG: MediaPlayer1 disconnected.\n";
+            current_track_title = "";
+            current_track_artist = "";
+            current_track_duration = 0.0f;
+            playback_position = 0.0f;
+            state = PlaybackState::Stopped;
+        } else if (old_player.empty() && !current_player_path.empty()) {
+            std::cout << "DEBUG: New MediaPlayer1 found: " << current_player_path << "\n";
+            // Optionally, automatically start playback:
+            // Play();
         }
     }
     
-    // If playing, update playback position.
+    // Update playback position if playing.
     if (state == PlaybackState::Playing) {
         if (!ignore_position_updates) {
             time_since_last_dbus_position += delta_time;
             playback_position += delta_time;
-            
             if (current_track_duration > 0 && playback_position >= current_track_duration) {
                 playback_position = 0.0f;
                 NextTrack();
@@ -344,6 +354,9 @@ bool BluetoothAudioManager::SetupDBus() {
 }
 
 bool BluetoothAudioManager::GetManagedObjects() {
+    // Clear current connection state before scanning.
+    current_player_path = "";
+    
     DBusMessage* reply = CallMethod(dbus_conn, "org.bluez", "/",
                                     "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
     if (!reply) {
