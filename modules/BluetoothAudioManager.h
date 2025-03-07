@@ -3,9 +3,10 @@
 
 #include <string>
 
-// Forward declarations for DBus types
+// Forward declarations for DBus types.
 struct DBusConnection;
 struct DBusMessage;
+struct DBusMessageIter;
 
 enum class PlaybackState {
     Stopped,
@@ -37,21 +38,21 @@ public:
     float GetPlaybackFraction() const;
     std::string GetTimeRemaining() const;
 
-    // Accessors for DBus metadata
+    // Accessors for DBus metadata.
     std::string GetCurrentTrackTitle() const { return current_track_title; }
     std::string GetCurrentTrackArtist() const { return current_track_artist; }
     float GetCurrentTrackDuration() const { return current_track_duration; }
     float GetCurrentPlaybackPosition() const { return playback_position; }
 
 private:
-    std::string current_player_path; // MediaPlayer1 path from DBus
+    std::string current_player_path; // MediaPlayer1 path from DBus.
     std::string current_track_title;
     std::string current_track_artist;
-    float current_track_duration; // Duration in seconds (from Metadata)
-    float playback_position;      // In seconds (from DBus "Position" updates)
+    float current_track_duration; // In seconds.
+    float playback_position;      // In seconds.
     bool ignore_position_updates;
     float time_since_last_dbus_position;
-    bool just_resumed;  // Flag to force update after resume
+    bool just_resumed;
     DBusConnection* dbus_conn;
     PlaybackState state;
     int volume;
@@ -63,8 +64,9 @@ private:
     void HandlePropertiesChanged(DBusMessage* msg);
     void SendVolumeUpdate(int vol);
 
-    // NEW: Helper method to refresh all metadata
+    // New helper methods:
     void RefreshMetadata();
+    void ProcessMetadataProperties(DBusMessageIter* props_iter);
 };
 
 #endif // BLUETOOTH_AUDIO_MANAGER_H
