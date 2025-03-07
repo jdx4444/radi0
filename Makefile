@@ -5,6 +5,7 @@ LDFLAGS = -L/usr/lib -lSDL2 -ldbus-1 -lGL
 
 SOURCES = main.cpp \
           modules/BluetoothAudioManager.cpp \
+          modules/BluetoothPairingManager.cpp \
           modules/Sprite.cpp \
           modules/UI.cpp \
           imgui/imgui.cpp \
