@@ -6,7 +6,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <dbus/dbus.h>
-#include <thread> // NEW: For asynchronous volume update
+#include <thread>
 
 // Helper method to call a DBus method.
 static DBusMessage* CallMethod(DBusConnection* conn, const char* destination, const char* path,
@@ -41,7 +41,7 @@ BluetoothAudioManager::BluetoothAudioManager()
       playback_position(0.0f),
       ignore_position_updates(false),
       time_since_last_dbus_position(0.0f),
-      just_resumed(false), // NEW: Force update after resume
+      just_resumed(false), // Force update after resume
       dbus_conn(nullptr)
 {
     std::cout << "DEBUG: BluetoothAudioManager constructed.\n";
@@ -163,13 +163,11 @@ void BluetoothAudioManager::Resume() {
     ignore_position_updates = false;
     time_since_last_dbus_position = 0.0f;
     
-    // If playback_position is nearly zero, force it to a small nonzero value.
     if (playback_position < 0.001f) {
         playback_position = 0.01f;
         std::cout << "DEBUG: Forced playback_position to 0.01f on resume.\n";
     }
     
-    // Set flag so that the next position update is forced.
     just_resumed = true;
     
     std::cout << "DEBUG: Resume() completed, state set to Playing, just_resumed flag set.\n";
@@ -279,11 +277,25 @@ PlaybackState BluetoothAudioManager::GetState() const {
 // Update and Playback Fraction
 // -----------------------------------------------------------------------------
 void BluetoothAudioManager::Update(float delta_time) {
-    // Uncomment the next line for per-frame debug info.
-    // std::cout << "DEBUG: Update() called with delta_time: " << delta_time << "\n";
+    // Process any pending DBus messages.
+    ProcessPendingDBusMessages();
+
+    // If no MediaPlayer1 is found, try to refresh every 1 second.
+    if (current_player_path.empty()) {
+        static float refresh_timer = 0.0f;
+        refresh_timer += delta_time;
+        if (refresh_timer >= 1.0f) {
+            refresh_timer = 0.0f;
+            if (GetManagedObjects() && !current_player_path.empty()) {
+                std::cout << "DEBUG: New MediaPlayer1 found: " << current_player_path << "\n";
+                // Optionally, you could automatically start playback here:
+                // Play();
+            }
+        }
+    }
+    
+    // If playing, update playback position.
     if (state == PlaybackState::Playing) {
-        ProcessPendingDBusMessages();
-        
         if (!ignore_position_updates) {
             time_since_last_dbus_position += delta_time;
             playback_position += delta_time;
@@ -510,7 +522,6 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                     dbus_message_iter_get_basic(&status_variant, &status_str);
                     if (status_str) {
                         std::string status(status_str);
-                        // If we just resumed, ignore an immediate "paused" signal.
                         if (status == "paused" && just_resumed) {
                             std::cout << "DEBUG: Ignoring paused status due to just_resumed flag.\n";
                         } else if (status == "paused") {
@@ -558,7 +569,6 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                         dbus_message_iter_get_basic(&variant_iter, &pos_val);
                         new_position = static_cast<float>(pos_val) / 1000.0f;
                     }
-                    // Force update if we just resumed, regardless of threshold.
                     if (just_resumed || std::abs(new_position - playback_position) > 0.05f) {
                         playback_position = new_position;
                         time_since_last_dbus_position = 0.0f;
@@ -575,7 +585,6 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
 
 void BluetoothAudioManager::SendVolumeUpdate(int vol) {
     int percentage = (vol * 100) / 128;
-    // Use pactl to adjust the volume of the default (analog) sink
     std::string command = "pactl set-sink-volume alsa_output.platform-bcm2835_audio.analog-stereo " 
                           + std::to_string(percentage) + "%";
     std::thread([command](){
