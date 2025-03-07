@@ -41,7 +41,7 @@ BluetoothAudioManager::BluetoothAudioManager()
       playback_position(0.0f),
       ignore_position_updates(false),
       time_since_last_dbus_position(0.0f),
-      just_resumed(false), // Force update after resume
+      just_resumed(false),
       dbus_conn(nullptr)
 {
     std::cout << "DEBUG: BluetoothAudioManager constructed.\n";
@@ -106,6 +106,8 @@ void BluetoothAudioManager::Play() {
     ignore_position_updates = false;
     time_since_last_dbus_position = 0.0f;
     std::cout << "DEBUG: Playback state set to Playing.\n";
+    // Refresh all metadata after a play command.
+    RefreshMetadata();
 }
 
 void BluetoothAudioManager::Pause() {
@@ -133,6 +135,8 @@ void BluetoothAudioManager::Pause() {
     state = PlaybackState::Paused;
     ignore_position_updates = true;
     std::cout << "DEBUG: Playback state set to Paused.\n";
+    // Refresh metadata after pausing as well (if needed).
+    RefreshMetadata();
 }
 
 void BluetoothAudioManager::Resume() {
@@ -171,6 +175,8 @@ void BluetoothAudioManager::Resume() {
     just_resumed = true;
     
     std::cout << "DEBUG: Resume() completed, state set to Playing, just_resumed flag set.\n";
+    // Refresh metadata after resuming.
+    RefreshMetadata();
 }
 
 void BluetoothAudioManager::NextTrack() {
@@ -196,6 +202,8 @@ void BluetoothAudioManager::NextTrack() {
     }
     dbus_message_unref(reply);
     std::cout << "DEBUG: NextTrack() command sent.\n";
+    // Refresh metadata after skipping to the next track.
+    RefreshMetadata();
 }
 
 void BluetoothAudioManager::PreviousTrack() {
@@ -230,6 +238,8 @@ void BluetoothAudioManager::PreviousTrack() {
         time_since_last_dbus_position = 0.0f;
         
         std::cout << "DEBUG: PreviousTrack() - Reset track position to start.\n";
+        // Refresh metadata after resetting track position.
+        RefreshMetadata();
         return;
     }
     
@@ -254,6 +264,8 @@ void BluetoothAudioManager::PreviousTrack() {
     time_since_last_dbus_position = 0.0f;
     
     std::cout << "DEBUG: PreviousTrack() command sent.\n";
+    // Refresh metadata after going back a track.
+    RefreshMetadata();
 }
 
 // -----------------------------------------------------------------------------
@@ -280,16 +292,17 @@ void BluetoothAudioManager::Update(float delta_time) {
     // Always process pending DBus messages.
     ProcessPendingDBusMessages();
 
-    // Periodic refresh: every 1 second, check for connection/disconnection.
+    // Periodic refresh: every 1 second, check for connection/disconnection
+    // and update metadata if needed.
     static float refresh_timer = 0.0f;
     refresh_timer += delta_time;
     if (refresh_timer >= 1.0f) {
         refresh_timer = 0.0f;
-        // Save the current connection state.
+        // Save current connection state.
         std::string old_player = current_player_path;
-        // Clear the current player so that GetManagedObjects() sets it fresh.
+        // Clear current state so GetManagedObjects() sets it fresh.
         current_player_path = "";
-        bool found = GetManagedObjects(); // This call sets current_player_path if a device is present.
+        bool found = GetManagedObjects();
         if (!old_player.empty() && current_player_path.empty()) {
             // Device was connected but now is gone.
             std::cout << "DEBUG: MediaPlayer1 disconnected.\n";
@@ -300,12 +313,12 @@ void BluetoothAudioManager::Update(float delta_time) {
             state = PlaybackState::Stopped;
         } else if (old_player.empty() && !current_player_path.empty()) {
             std::cout << "DEBUG: New MediaPlayer1 found: " << current_player_path << "\n";
-            // Optionally, automatically start playback:
-            // Play();
+            // Immediately refresh metadata.
+            RefreshMetadata();
         }
     }
     
-    // Update playback position if playing.
+    // If playing, update playback position.
     if (state == PlaybackState::Playing) {
         if (!ignore_position_updates) {
             time_since_last_dbus_position += delta_time;
@@ -332,6 +345,40 @@ std::string BluetoothAudioManager::GetTimeRemaining() const {
     oss << std::setw(2) << std::setfill('0') << minutes << ":"
         << std::setw(2) << std::setfill('0') << seconds;
     return oss.str();
+}
+
+// -----------------------------------------------------------------------------
+// New Helper Method: RefreshMetadata()
+// -----------------------------------------------------------------------------
+void BluetoothAudioManager::RefreshMetadata() {
+    if (current_player_path.empty()) return;
+    
+    // Call DBus method "GetAll" on the Properties interface for the current MediaPlayer1.
+    DBusMessage* msg = dbus_message_new_method_call("org.bluez", current_player_path.c_str(),
+                                                    "org.freedesktop.DBus.Properties", "GetAll");
+    if (!msg) {
+        std::cerr << "DEBUG: Failed to create DBus GetAll message for metadata.\n";
+        return;
+    }
+    const char* iface = "org.bluez.MediaPlayer1";
+    dbus_message_append_args(msg,
+                             DBUS_TYPE_STRING, &iface,
+                             DBUS_TYPE_INVALID);
+    DBusError err;
+    dbus_error_init(&err);
+    // Wait up to 5 seconds for a reply.
+    DBusMessage* reply = dbus_connection_send_with_reply_and_block(dbus_conn, msg, 5000, &err);
+    dbus_message_unref(msg);
+    if (dbus_error_is_set(&err)) {
+        std::cerr << "DEBUG: Error in RefreshMetadata: " << err.message << "\n";
+        dbus_error_free(&err);
+        return;
+    }
+    if (reply) {
+        // Process the reply similarly to a PropertiesChanged signal.
+        HandlePropertiesChanged(reply);
+        dbus_message_unref(reply);
+    }
 }
 
 // -----------------------------------------------------------------------------

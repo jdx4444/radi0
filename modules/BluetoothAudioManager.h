@@ -3,6 +3,10 @@
 
 #include <string>
 
+// Forward declarations for DBus types
+struct DBusConnection;
+struct DBusMessage;
+
 enum class PlaybackState {
     Stopped,
     Playing,
@@ -47,18 +51,20 @@ private:
     float playback_position;      // In seconds (from DBus "Position" updates)
     bool ignore_position_updates;
     float time_since_last_dbus_position;
-    bool just_resumed;  // <<< NEW: Flag to force update after resume
-    struct DBusConnection* dbus_conn;
+    bool just_resumed;  // Flag to force update after resume
+    DBusConnection* dbus_conn;
+    PlaybackState state;
+    int volume;
 
     bool SetupDBus();
     bool GetManagedObjects();
     void ListenForSignals();
     void ProcessPendingDBusMessages();
-    void HandlePropertiesChanged(struct DBusMessage* msg);
+    void HandlePropertiesChanged(DBusMessage* msg);
     void SendVolumeUpdate(int vol);
 
-    PlaybackState state;
-    int volume;
+    // NEW: Helper method to refresh all metadata
+    void RefreshMetadata();
 };
 
 #endif // BLUETOOTH_AUDIO_MANAGER_H
