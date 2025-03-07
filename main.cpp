@@ -11,6 +11,7 @@
 #include "imgui_impl_opengl3.h"
 
 #include "modules/BluetoothAudioManager.h"
+#include "modules/BluetoothPairingManager.h"  // <-- Added pairing manager header
 #include "modules/Sprite.h"
 #include "modules/UI.h"
 #include <algorithm> // for std::min
@@ -125,6 +126,14 @@ int main(int, char**)
     
     audioManager.Play();
 
+    // Initialize the BluetoothPairingManager
+    BluetoothPairingManager pairingManager;
+    if (!pairingManager.Initialize())
+    {
+        printf("Failed to initialize BluetoothPairingManager.\n");
+        return -1;
+    }
+    
     // Initialize Sprite and UI modules
     Sprite sprite;
     sprite.Initialize(scale);
@@ -171,11 +180,17 @@ int main(int, char**)
                     case SDLK_DOWN:
                         audioManager.SetVolume(audioManager.GetVolume() - 8);
                         break;
+                    case SDLK_m: // <-- Handle pairing confirmation with "m" key.
+                        pairingManager.HandleMKey();
+                        break;
                     default:
                         break;
                 }
             }
         }
+
+        // Process pending pairing DBus messages.
+        pairingManager.Process();
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplSDL2_NewFrame();
