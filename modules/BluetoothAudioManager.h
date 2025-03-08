@@ -43,6 +43,7 @@ private:
     std::string current_player_path; // MediaPlayer1 path from DBus
     std::string current_track_title;
     std::string current_track_artist;
+    std::string current_player_path;
     float current_track_duration; // Duration in seconds (from Metadata)
     float playback_position;      // In seconds (from DBus "Position" updates)
     bool ignore_position_updates;
@@ -56,6 +57,7 @@ private:
     void ProcessPendingDBusMessages();
     void HandlePropertiesChanged(struct DBusMessage* msg);
     void SendVolumeUpdate(int vol);
+    void HandleInterfacesAdded(DBusMessage* msg);
     void HandleInterfacesAdded(DBusMessage* msg);
 
     PlaybackState state;

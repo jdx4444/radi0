@@ -276,6 +276,17 @@ PlaybackState BluetoothAudioManager::GetState() const {
 // Update and Playback Fraction
 // -----------------------------------------------------------------------------
 void BluetoothAudioManager::Update(float delta_time) {
+    // Fallback: if no active MediaPlayer1 is set, poll periodically.
+    if (current_player_path.empty()) {
+        static float time_since_last_scan = 0.0f;
+        time_since_last_scan += delta_time;
+        if (time_since_last_scan >= 5.0f) {  // every 5 seconds
+            std::cout << "DEBUG: Polling for MediaPlayer1 via GetManagedObjects...\n";
+            GetManagedObjects();
+            time_since_last_scan = 0.0f;
+        }
+    }
+    
     if (state == PlaybackState::Playing) {
         ProcessPendingDBusMessages();
         
@@ -380,7 +391,7 @@ bool BluetoothAudioManager::GetManagedObjects() {
 }
 
 void BluetoothAudioManager::ListenForSignals() {
-    // Listen for property changes.
+    // Listen for PropertiesChanged signals.
     const char* rule_props = "type='signal',interface='org.freedesktop.DBus.Properties',member='PropertiesChanged',sender='org.bluez'";
     dbus_bus_add_match(dbus_conn, rule_props, NULL);
     std::cout << "DEBUG: Listening for DBus PropertiesChanged signals...\n";
