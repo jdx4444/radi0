@@ -41,8 +41,8 @@ public:
     float GetCurrentPlaybackPosition() const { return playback_position; }
 
 private:
-    // Single declaration for the media player path.
-    std::string current_player_path; // MediaPlayer1 path from DBus
+    // MediaPlayer1 object path from DBus.
+    std::string current_player_path;
 
     std::string current_track_title;
     std::string current_track_artist;
@@ -60,10 +60,11 @@ private:
     void ListenForSignals();
     void ProcessPendingDBusMessages();
     void HandlePropertiesChanged(DBusMessage* msg);
-
-    // Single declaration for the new InterfacesAdded handler.
     void HandleInterfacesAdded(DBusMessage* msg);
-    
+
+    // NEW: Declaration for querying current playback position.
+    float QueryCurrentPlaybackPosition();
+
     void SendVolumeUpdate(int vol);
 };
 

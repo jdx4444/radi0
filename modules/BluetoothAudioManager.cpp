@@ -163,9 +163,15 @@ void BluetoothAudioManager::Resume() {
     ignore_position_updates = false;
     time_since_last_dbus_position = 0.0f;
     
+    // Instead of unconditionally forcing playback_position to 0.01,
+    // query the current position from the media player.
     if (playback_position < 0.001f) {
-        playback_position = 0.01f;
-        std::cout << "DEBUG: Forced playback_position to 0.01f on resume.\n";
+        float pos = QueryCurrentPlaybackPosition();
+        if (pos < 0.001f) {
+            pos = 0.01f; // fallback if query fails
+        }
+        playback_position = pos;
+        std::cout << "DEBUG: Set playback_position to queried value: " << playback_position << "s\n";
     }
     
     just_resumed = true;
@@ -573,6 +579,7 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                         dbus_message_iter_get_basic(&variant_iter, &pos_val);
                         new_position = static_cast<float>(pos_val) / 1000.0f;
                     }
+                    // Force update if we just resumed or the change is significant.
                     if (just_resumed || std::abs(new_position - playback_position) > 0.05f) {
                         playback_position = new_position;
                         time_since_last_dbus_position = 0.0f;
@@ -623,6 +630,58 @@ void BluetoothAudioManager::HandleInterfacesAdded(DBusMessage* msg) {
         }
         dbus_message_iter_next(&interfaces_iter);
     }
+}
+
+// NEW: Query the current Playback Position from the media player.
+float BluetoothAudioManager::QueryCurrentPlaybackPosition() {
+    if (current_player_path.empty() || !dbus_conn) {
+        return 0.0f;
+    }
+    DBusMessage* msg = dbus_message_new_method_call("org.bluez", current_player_path.c_str(),
+        "org.freedesktop.DBus.Properties", "Get");
+    if (!msg) {
+        std::cerr << "DEBUG: Failed to create DBus message to query Position.\n";
+        return 0.0f;
+    }
+    const char* iface = "org.bluez.MediaPlayer1";
+    const char* property = "Position";
+    dbus_message_append_args(msg,
+         DBUS_TYPE_STRING, &iface,
+         DBUS_TYPE_STRING, &property,
+         DBUS_TYPE_INVALID);
+    DBusError err;
+    dbus_error_init(&err);
+    DBusMessage* reply = dbus_connection_send_with_reply_and_block(dbus_conn, msg, -1, &err);
+    dbus_message_unref(msg);
+    float pos = 0.0f;
+    if (reply && !dbus_error_is_set(&err)) {
+        DBusMessageIter iter;
+        if (dbus_message_iter_init(reply, &iter) &&
+            dbus_message_iter_get_arg_type(&iter) == DBUS_TYPE_VARIANT) {
+            DBusMessageIter variant;
+            dbus_message_iter_recurse(&iter, &variant);
+            int type = dbus_message_iter_get_arg_type(&variant);
+            if (type == DBUS_TYPE_INT64) {
+                dbus_int64_t pos_val;
+                dbus_message_iter_get_basic(&variant, &pos_val);
+                pos = (pos_val < 1000000) ? static_cast<float>(pos_val) / 1000.0f
+                                          : static_cast<float>(pos_val) / 1000000.0f;
+            } else if (type == DBUS_TYPE_UINT32) {
+                uint32_t pos_val;
+                dbus_message_iter_get_basic(&variant, &pos_val);
+                pos = static_cast<float>(pos_val) / 1000.0f;
+            }
+        }
+        dbus_message_unref(reply);
+        std::cout << "DEBUG: QueryCurrentPlaybackPosition returned: " << pos << "s\n";
+    } else {
+        std::cerr << "DEBUG: Failed to query Playback Position: " << err.message << "\n";
+        dbus_error_free(&err);
+        if (reply) {
+            dbus_message_unref(reply);
+        }
+    }
+    return pos;
 }
 
 void BluetoothAudioManager::SendVolumeUpdate(int vol) {
