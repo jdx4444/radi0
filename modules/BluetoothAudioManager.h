@@ -2,6 +2,7 @@
 #define BLUETOOTH_AUDIO_MANAGER_H
 
 #include <string>
+#include <dbus/dbus.h>
 
 enum class PlaybackState {
     Stopped,
@@ -23,7 +24,7 @@ public:
     void NextTrack();
     void PreviousTrack();
 
-    void SetVolume(int volume); // Range: 0-128
+    void SetVolume(int volume); // Volume range: 0-128
     int GetVolume() const;
 
     PlaybackState GetState() const;
@@ -33,35 +34,37 @@ public:
     float GetPlaybackFraction() const;
     std::string GetTimeRemaining() const;
 
-    // Accessors for DBus metadata
+    // Accessors for DBus metadata.
     std::string GetCurrentTrackTitle() const { return current_track_title; }
     std::string GetCurrentTrackArtist() const { return current_track_artist; }
     float GetCurrentTrackDuration() const { return current_track_duration; }
     float GetCurrentPlaybackPosition() const { return playback_position; }
 
 private:
+    // Single declaration for the media player path.
     std::string current_player_path; // MediaPlayer1 path from DBus
+
     std::string current_track_title;
     std::string current_track_artist;
-    std::string current_player_path;
-    float current_track_duration; // Duration in seconds (from Metadata)
-    float playback_position;      // In seconds (from DBus "Position" updates)
+    float current_track_duration; // in seconds
+    float playback_position;      // in seconds
     bool ignore_position_updates;
     float time_since_last_dbus_position;
-    bool just_resumed;  // <<< NEW: Flag to force update after resume
-    struct DBusConnection* dbus_conn;
+    bool just_resumed;
+    DBusConnection* dbus_conn;
+    PlaybackState state;
+    int volume;
 
     bool SetupDBus();
     bool GetManagedObjects();
     void ListenForSignals();
     void ProcessPendingDBusMessages();
-    void HandlePropertiesChanged(struct DBusMessage* msg);
-    void SendVolumeUpdate(int vol);
-    void HandleInterfacesAdded(DBusMessage* msg);
-    void HandleInterfacesAdded(DBusMessage* msg);
+    void HandlePropertiesChanged(DBusMessage* msg);
 
-    PlaybackState state;
-    int volume;
+    // Single declaration for the new InterfacesAdded handler.
+    void HandleInterfacesAdded(DBusMessage* msg);
+    
+    void SendVolumeUpdate(int vol);
 };
 
 #endif // BLUETOOTH_AUDIO_MANAGER_H
