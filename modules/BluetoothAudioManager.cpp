@@ -491,13 +491,15 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
         DBusMessageIter entry_iter;
         dbus_message_iter_recurse(&props_iter, &entry_iter);
         const char* key = nullptr;
-        dbus_message_iter_get_basic(&entry_iter, &key);
+        // Process the property key if it is a string.
+        if (dbus_message_iter_get_arg_type(&entry_iter) == DBUS_TYPE_STRING) {
+            dbus_message_iter_get_basic(&entry_iter, &key);
+        }
         dbus_message_iter_next(&entry_iter);
         
         // Process Metadata/Track changes.
-        if (strcmp(key, "Metadata") == 0 || strcmp(key, "Track") == 0) {
-            int variant_type = dbus_message_iter_get_arg_type(&entry_iter);
-            if (variant_type == DBUS_TYPE_VARIANT) {
+        if (key && (strcmp(key, "Metadata") == 0 || strcmp(key, "Track") == 0)) {
+            if (dbus_message_iter_get_arg_type(&entry_iter) == DBUS_TYPE_VARIANT) {
                 DBusMessageIter variant_iter;
                 dbus_message_iter_recurse(&entry_iter, &variant_iter);
                 if (dbus_message_iter_get_arg_type(&variant_iter) == DBUS_TYPE_ARRAY) {
@@ -506,59 +508,72 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                     while (dbus_message_iter_get_arg_type(&array_iter) == DBUS_TYPE_DICT_ENTRY) {
                         DBusMessageIter dict_entry_iter;
                         dbus_message_iter_recurse(&array_iter, &dict_entry_iter);
+                        
+                        // Ensure the key of the dict entry is a string.
+                        int key_type = dbus_message_iter_get_arg_type(&dict_entry_iter);
+                        if (key_type != DBUS_TYPE_STRING) {
+                            std::cerr << "DEBUG: Unexpected metadata key type: " << key_type << "\n";
+                            dbus_message_iter_next(&array_iter);
+                            continue;
+                        }
+                        
                         const char* meta_key = nullptr;
                         dbus_message_iter_get_basic(&dict_entry_iter, &meta_key);
                         dbus_message_iter_next(&dict_entry_iter);
-                        if (dbus_message_iter_get_arg_type(&dict_entry_iter) == DBUS_TYPE_VARIANT) {
-                            DBusMessageIter inner_variant;
-                            dbus_message_iter_recurse(&dict_entry_iter, &inner_variant);
-                            int basic_type = dbus_message_iter_get_arg_type(&inner_variant);
-                            if ((strcmp(meta_key, "xesam:title") == 0 || strcmp(meta_key, "Title") == 0) &&
-                                basic_type == DBUS_TYPE_STRING) {
-                                const char* title = nullptr;
-                                dbus_message_iter_get_basic(&inner_variant, &title);
-                                current_track_title = title ? title : "";
-                                std::cout << "DEBUG: Updated Title: " << current_track_title << "\n";
-                            }
-                            else if ((strcmp(meta_key, "xesam:artist") == 0 || strcmp(meta_key, "Artist") == 0)) {
-                                if (basic_type == DBUS_TYPE_ARRAY) {
-                                    DBusMessageIter artist_array;
-                                    dbus_message_iter_recurse(&inner_variant, &artist_array);
-                                    std::string artists;
-                                    // Iterate over each string in the array.
-                                    while (dbus_message_iter_get_arg_type(&artist_array) == DBUS_TYPE_STRING) {
-                                        const char* artist = nullptr;
-                                        dbus_message_iter_get_basic(&artist_array, &artist);
-                                        if (artist) {
-                                            if (!artists.empty()) artists += ", ";
-                                            artists += artist;
-                                        }
-                                        dbus_message_iter_next(&artist_array);
-                                    }
-                                    current_track_artist = artists;
-                                    std::cout << "DEBUG: Updated Artist: " << current_track_artist << "\n";
-                                }
-                                else if (basic_type == DBUS_TYPE_STRING) {
+                        
+                        if (dbus_message_iter_get_arg_type(&dict_entry_iter) != DBUS_TYPE_VARIANT) {
+                            dbus_message_iter_next(&array_iter);
+                            continue;
+                        }
+                        
+                        DBusMessageIter inner_variant;
+                        dbus_message_iter_recurse(&dict_entry_iter, &inner_variant);
+                        int basic_type = dbus_message_iter_get_arg_type(&inner_variant);
+                        
+                        if ((strcmp(meta_key, "xesam:title") == 0 || strcmp(meta_key, "Title") == 0) &&
+                            basic_type == DBUS_TYPE_STRING) {
+                            const char* title = nullptr;
+                            dbus_message_iter_get_basic(&inner_variant, &title);
+                            current_track_title = title ? title : "";
+                            std::cout << "DEBUG: Updated Title: " << current_track_title << "\n";
+                        }
+                        else if ((strcmp(meta_key, "xesam:artist") == 0 || strcmp(meta_key, "Artist") == 0)) {
+                            if (basic_type == DBUS_TYPE_ARRAY) {
+                                DBusMessageIter artist_array;
+                                dbus_message_iter_recurse(&inner_variant, &artist_array);
+                                std::string artists;
+                                while (dbus_message_iter_get_arg_type(&artist_array) == DBUS_TYPE_STRING) {
                                     const char* artist = nullptr;
-                                    dbus_message_iter_get_basic(&inner_variant, &artist);
-                                    current_track_artist = artist ? artist : "";
-                                    std::cout << "DEBUG: Updated Artist: " << current_track_artist << "\n";
+                                    dbus_message_iter_get_basic(&artist_array, &artist);
+                                    if (artist) {
+                                        if (!artists.empty()) artists += ", ";
+                                        artists += artist;
+                                    }
+                                    dbus_message_iter_next(&artist_array);
                                 }
+                                current_track_artist = artists;
+                                std::cout << "DEBUG: Updated Artist: " << current_track_artist << "\n";
                             }
-                            else if ((strcmp(meta_key, "xesam:length") == 0 || strcmp(meta_key, "Duration") == 0)) {
-                                if (basic_type == DBUS_TYPE_INT64) {
-                                    dbus_int64_t length_val;
-                                    dbus_message_iter_get_basic(&inner_variant, &length_val);
-                                    current_track_duration = (length_val < 1000000)
-                                        ? static_cast<float>(length_val) / 1000.0f
-                                        : static_cast<float>(length_val) / 1000000.0f;
-                                    std::cout << "DEBUG: Updated Track Duration: " << current_track_duration << "s\n";
-                                } else if (basic_type == DBUS_TYPE_UINT32) {
-                                    uint32_t length_val;
-                                    dbus_message_iter_get_basic(&inner_variant, &length_val);
-                                    current_track_duration = static_cast<float>(length_val) / 1000.0f;
-                                    std::cout << "DEBUG: Updated Track Duration: " << current_track_duration << "s\n";
-                                }
+                            else if (basic_type == DBUS_TYPE_STRING) {
+                                const char* artist = nullptr;
+                                dbus_message_iter_get_basic(&inner_variant, &artist);
+                                current_track_artist = artist ? artist : "";
+                                std::cout << "DEBUG: Updated Artist: " << current_track_artist << "\n";
+                            }
+                        }
+                        else if ((strcmp(meta_key, "xesam:length") == 0 || strcmp(meta_key, "Duration") == 0)) {
+                            if (basic_type == DBUS_TYPE_INT64) {
+                                dbus_int64_t length_val;
+                                dbus_message_iter_get_basic(&inner_variant, &length_val);
+                                current_track_duration = (length_val < 1000000)
+                                    ? static_cast<float>(length_val) / 1000.0f
+                                    : static_cast<float>(length_val) / 1000000.0f;
+                                std::cout << "DEBUG: Updated Track Duration: " << current_track_duration << "s\n";
+                            } else if (basic_type == DBUS_TYPE_UINT32) {
+                                uint32_t length_val;
+                                dbus_message_iter_get_basic(&inner_variant, &length_val);
+                                current_track_duration = static_cast<float>(length_val) / 1000.0f;
+                                std::cout << "DEBUG: Updated Track Duration: " << current_track_duration << "s\n";
                             }
                         }
                         dbus_message_iter_next(&array_iter);
@@ -567,7 +582,7 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
             }
         }
         // Process "Status" changes.
-        else if (strcmp(key, "Status") == 0) {
+        else if (key && strcmp(key, "Status") == 0) {
             int type = dbus_message_iter_get_arg_type(&entry_iter);
             if (type == DBUS_TYPE_VARIANT) {
                 DBusMessageIter status_variant;
@@ -592,7 +607,7 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
             }
         }
         // Process "Volume" changes.
-        else if (strcmp(key, "Volume") == 0) {
+        else if (key && strcmp(key, "Volume") == 0) {
             int type = dbus_message_iter_get_arg_type(&entry_iter);
             if (type == DBUS_TYPE_VARIANT) {
                 DBusMessageIter vol_variant;
@@ -606,7 +621,7 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
             }
         }
         // Process "Position" updates.
-        else if (strcmp(key, "Position") == 0) {
+        else if (key && strcmp(key, "Position") == 0) {
             if (state == PlaybackState::Playing) {
                 int type = dbus_message_iter_get_arg_type(&entry_iter);
                 if (type == DBUS_TYPE_VARIANT) {
