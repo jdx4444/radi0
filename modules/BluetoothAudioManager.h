@@ -51,7 +51,7 @@ private:
     bool ignore_position_updates;
     float time_since_last_dbus_position;
     bool just_resumed;
-    bool autoRefreshed;           // NEW: flag to ensure auto-refresh happens only once
+    bool autoRefreshed;  // NEW: flag to ensure auto-refresh is triggered only once
     DBusConnection* dbus_conn;
     PlaybackState state;
     int volume;

@@ -623,14 +623,10 @@ void BluetoothAudioManager::HandleInterfacesAdded(DBusMessage* msg) {
         if (interface_name && strcmp(interface_name, "org.bluez.MediaPlayer1") == 0) {
             std::cout << "DEBUG: New MediaPlayer1 interface added at: " << object_path << "\n";
             current_player_path = object_path;
-            // If metadata hasn't been loaded yet and we haven't auto-refreshed, trigger an auto refresh.
+            // If metadata hasn't been loaded yet, trigger an auto-refresh unconditionally.
             if (current_track_title.empty() && !autoRefreshed) {
-                std::string status = QueryMediaPlayerStatus();
-                std::cout << "DEBUG: MediaPlayer1 status: " << status << "\n";
-                if (status == "playing") {
-                    autoRefreshed = true;
-                    AutoRefresh();
-                }
+                autoRefreshed = true;
+                AutoRefresh();
             }
             break;
         }
@@ -641,7 +637,10 @@ void BluetoothAudioManager::HandleInterfacesAdded(DBusMessage* msg) {
 // NEW: Automatically refresh metadata by toggling playback.
 void BluetoothAudioManager::AutoRefresh() {
     std::thread([this](){
-        // Briefly pause playback then resume.
+        // Wait a little longer to allow the media player to settle.
+        std::this_thread::sleep_for(std::chrono::milliseconds(800));
+        // Simulate a pause/resume cycle.
+        std::cout << "DEBUG: AutoRefresh() initiating pause/resume sequence.\n";
         Pause();
         std::this_thread::sleep_for(std::chrono::milliseconds(300));
         Resume();
