@@ -6,7 +6,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <dbus/dbus.h>
-#include <thread> // NEW: For asynchronous volume update
+#include <thread> // For asynchronous volume update
 
 // Helper method to call a DBus method.
 static DBusMessage* CallMethod(DBusConnection* conn, const char* destination, const char* path,
@@ -41,7 +41,7 @@ BluetoothAudioManager::BluetoothAudioManager()
       playback_position(0.0f),
       ignore_position_updates(false),
       time_since_last_dbus_position(0.0f),
-      just_resumed(false), // NEW: Force update after resume
+      just_resumed(false),
       dbus_conn(nullptr)
 {
     std::cout << "DEBUG: BluetoothAudioManager constructed.\n";
@@ -163,15 +163,12 @@ void BluetoothAudioManager::Resume() {
     ignore_position_updates = false;
     time_since_last_dbus_position = 0.0f;
     
-    // If playback_position is nearly zero, force it to a small nonzero value.
     if (playback_position < 0.001f) {
         playback_position = 0.01f;
         std::cout << "DEBUG: Forced playback_position to 0.01f on resume.\n";
     }
     
-    // Set flag so that the next position update is forced.
     just_resumed = true;
-    
     std::cout << "DEBUG: Resume() completed, state set to Playing, just_resumed flag set.\n";
 }
 
@@ -279,8 +276,6 @@ PlaybackState BluetoothAudioManager::GetState() const {
 // Update and Playback Fraction
 // -----------------------------------------------------------------------------
 void BluetoothAudioManager::Update(float delta_time) {
-    // Uncomment the next line for per-frame debug info.
-    // std::cout << "DEBUG: Update() called with delta_time: " << delta_time << "\n";
     if (state == PlaybackState::Playing) {
         ProcessPendingDBusMessages();
         
@@ -385,10 +380,16 @@ bool BluetoothAudioManager::GetManagedObjects() {
 }
 
 void BluetoothAudioManager::ListenForSignals() {
+    // Listen for property changes.
     const char* rule_props = "type='signal',interface='org.freedesktop.DBus.Properties',member='PropertiesChanged',sender='org.bluez'";
     dbus_bus_add_match(dbus_conn, rule_props, NULL);
+    std::cout << "DEBUG: Listening for DBus PropertiesChanged signals...\n";
+
+    // Listen for InterfacesAdded signals.
+    const char* rule_ifadded = "type='signal',interface='org.freedesktop.DBus.ObjectManager',member='InterfacesAdded',sender='org.bluez'";
+    dbus_bus_add_match(dbus_conn, rule_ifadded, NULL);
     dbus_connection_flush(dbus_conn);
-    std::cout << "DEBUG: Listening for DBus signals...\n";
+    std::cout << "DEBUG: Listening for DBus InterfacesAdded signals...\n";
 }
 
 void BluetoothAudioManager::ProcessPendingDBusMessages() {
@@ -406,6 +407,10 @@ void BluetoothAudioManager::ProcessPendingDBusMessages() {
                     strcmp(member, "PropertiesChanged") == 0) {
                     std::cout << "DEBUG: Signal received: PropertiesChanged\n";
                     HandlePropertiesChanged(msg);
+                } else if (strcmp(interface, "org.freedesktop.DBus.ObjectManager") == 0 &&
+                           strcmp(member, "InterfacesAdded") == 0) {
+                    std::cout << "DEBUG: Signal received: InterfacesAdded\n";
+                    HandleInterfacesAdded(msg);
                 }
             }
         }
@@ -510,7 +515,6 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                     dbus_message_iter_get_basic(&status_variant, &status_str);
                     if (status_str) {
                         std::string status(status_str);
-                        // If we just resumed, ignore an immediate "paused" signal.
                         if (status == "paused" && just_resumed) {
                             std::cout << "DEBUG: Ignoring paused status due to just_resumed flag.\n";
                         } else if (status == "paused") {
@@ -558,7 +562,6 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                         dbus_message_iter_get_basic(&variant_iter, &pos_val);
                         new_position = static_cast<float>(pos_val) / 1000.0f;
                     }
-                    // Force update if we just resumed, regardless of threshold.
                     if (just_resumed || std::abs(new_position - playback_position) > 0.05f) {
                         playback_position = new_position;
                         time_since_last_dbus_position = 0.0f;
@@ -573,9 +576,46 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
     }
 }
 
+// NEW: Handler for InterfacesAdded signal.
+void BluetoothAudioManager::HandleInterfacesAdded(DBusMessage* msg) {
+    DBusMessageIter iter;
+    if (!dbus_message_iter_init(msg, &iter)) {
+        std::cerr << "DEBUG: InterfacesAdded signal has no arguments.\n";
+        return;
+    }
+    // First argument: the object path of the new interface.
+    const char* object_path = nullptr;
+    if (dbus_message_iter_get_arg_type(&iter) == DBUS_TYPE_OBJECT_PATH) {
+        dbus_message_iter_get_basic(&iter, &object_path);
+    }
+    dbus_message_iter_next(&iter);
+    
+    // Second argument: dictionary of interfaces and properties.
+    if (dbus_message_iter_get_arg_type(&iter) != DBUS_TYPE_ARRAY) {
+        std::cerr << "DEBUG: InterfacesAdded signal: expected an array.\n";
+        return;
+    }
+    DBusMessageIter interfaces_iter;
+    dbus_message_iter_recurse(&iter, &interfaces_iter);
+    
+    while (dbus_message_iter_get_arg_type(&interfaces_iter) == DBUS_TYPE_DICT_ENTRY) {
+        DBusMessageIter dict_entry;
+        dbus_message_iter_recurse(&interfaces_iter, &dict_entry);
+        const char* interface_name = nullptr;
+        if (dbus_message_iter_get_arg_type(&dict_entry) == DBUS_TYPE_STRING) {
+            dbus_message_iter_get_basic(&dict_entry, &interface_name);
+        }
+        if (interface_name && strcmp(interface_name, "org.bluez.MediaPlayer1") == 0) {
+            std::cout << "DEBUG: New MediaPlayer1 interface added at: " << object_path << "\n";
+            current_player_path = object_path;
+            break;
+        }
+        dbus_message_iter_next(&interfaces_iter);
+    }
+}
+
 void BluetoothAudioManager::SendVolumeUpdate(int vol) {
     int percentage = (vol * 100) / 128;
-    // Use pactl to adjust the volume of the default (analog) sink
     std::string command = "pactl set-sink-volume alsa_output.platform-bcm2835_audio.analog-stereo " 
                           + std::to_string(percentage) + "%";
     std::thread([command](){

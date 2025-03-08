@@ -56,6 +56,7 @@ private:
     void ProcessPendingDBusMessages();
     void HandlePropertiesChanged(struct DBusMessage* msg);
     void SendVolumeUpdate(int vol);
+    void HandleInterfacesAdded(DBusMessage* msg);
 
     PlaybackState state;
     int volume;
