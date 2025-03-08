@@ -51,6 +51,7 @@ private:
     bool ignore_position_updates;
     float time_since_last_dbus_position;
     bool just_resumed;
+    bool autoRefreshed;           // NEW: flag to ensure auto-refresh happens only once
     DBusConnection* dbus_conn;
     PlaybackState state;
     int volume;
@@ -65,8 +66,11 @@ private:
     // NEW: Query current playback position (in seconds).
     float QueryCurrentPlaybackPosition();
 
-    // NEW: Query current media player status ("playing", "paused", etc.).
+    // NEW: Query current media player status (e.g., "playing", "paused").
     std::string QueryMediaPlayerStatus();
+
+    // NEW: Automatically refresh metadata by toggling playback.
+    void AutoRefresh();
 
     void SendVolumeUpdate(int vol);
 };

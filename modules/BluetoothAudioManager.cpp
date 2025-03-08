@@ -42,6 +42,7 @@ BluetoothAudioManager::BluetoothAudioManager()
       ignore_position_updates(false),
       time_since_last_dbus_position(0.0f),
       just_resumed(false),
+      autoRefreshed(false),
       dbus_conn(nullptr)
 {
     std::cout << "DEBUG: BluetoothAudioManager constructed.\n";
@@ -163,8 +164,6 @@ void BluetoothAudioManager::Resume() {
     ignore_position_updates = false;
     time_since_last_dbus_position = 0.0f;
     
-    // If our internal playback_position is nearly zero,
-    // query the current position from the media player.
     if (playback_position < 0.001f) {
         float pos = QueryCurrentPlaybackPosition();
         if (pos < 0.001f) {
@@ -579,7 +578,6 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                         dbus_message_iter_get_basic(&variant_iter, &pos_val);
                         new_position = static_cast<float>(pos_val) / 1000.0f;
                     }
-                    // Update if we just resumed or the change is significant.
                     if (just_resumed || std::abs(new_position - playback_position) > 0.05f) {
                         playback_position = new_position;
                         time_since_last_dbus_position = 0.0f;
@@ -625,22 +623,29 @@ void BluetoothAudioManager::HandleInterfacesAdded(DBusMessage* msg) {
         if (interface_name && strcmp(interface_name, "org.bluez.MediaPlayer1") == 0) {
             std::cout << "DEBUG: New MediaPlayer1 interface added at: " << object_path << "\n";
             current_player_path = object_path;
-            // If no metadata has been loaded yet, query the status.
-            if (current_track_title.empty()) {
+            // If metadata hasn't been loaded yet and we haven't auto-refreshed, trigger an auto refresh.
+            if (current_track_title.empty() && !autoRefreshed) {
                 std::string status = QueryMediaPlayerStatus();
                 std::cout << "DEBUG: MediaPlayer1 status: " << status << "\n";
                 if (status == "playing") {
-                    // Trigger a resume refresh after a short delay.
-                    std::thread([this](){
-                        std::this_thread::sleep_for(std::chrono::milliseconds(500));
-                        Resume();
-                    }).detach();
+                    autoRefreshed = true;
+                    AutoRefresh();
                 }
             }
             break;
         }
         dbus_message_iter_next(&interfaces_iter);
     }
+}
+
+// NEW: Automatically refresh metadata by toggling playback.
+void BluetoothAudioManager::AutoRefresh() {
+    std::thread([this](){
+        // Briefly pause playback then resume.
+        Pause();
+        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        Resume();
+    }).detach();
 }
 
 // NEW: Query the current Playback Position from the media player.
