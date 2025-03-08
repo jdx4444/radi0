@@ -303,7 +303,6 @@ void BluetoothAudioManager::Update(float delta_time) {
             std::cout << "DEBUG: New MediaPlayer1 found: " << current_player_path << "\n";
             // Immediately refresh metadata.
             RefreshMetadata();
-            // Optionally, you could also automatically call Play() here.
         }
     }
     
@@ -525,13 +524,21 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                                 if (basic_type == DBUS_TYPE_ARRAY) {
                                     DBusMessageIter artist_array;
                                     dbus_message_iter_recurse(&inner_variant, &artist_array);
-                                    if (dbus_message_iter_get_arg_type(&artist_array) == DBUS_TYPE_STRING) {
+                                    std::string artists;
+                                    // Iterate over each string in the array.
+                                    while (dbus_message_iter_get_arg_type(&artist_array) == DBUS_TYPE_STRING) {
                                         const char* artist = nullptr;
                                         dbus_message_iter_get_basic(&artist_array, &artist);
-                                        current_track_artist = artist ? artist : "";
-                                        std::cout << "DEBUG: Updated Artist: " << current_track_artist << "\n";
+                                        if (artist) {
+                                            if (!artists.empty()) artists += ", ";
+                                            artists += artist;
+                                        }
+                                        dbus_message_iter_next(&artist_array);
                                     }
-                                } else if (basic_type == DBUS_TYPE_STRING) {
+                                    current_track_artist = artists;
+                                    std::cout << "DEBUG: Updated Artist: " << current_track_artist << "\n";
+                                }
+                                else if (basic_type == DBUS_TYPE_STRING) {
                                     const char* artist = nullptr;
                                     dbus_message_iter_get_basic(&inner_variant, &artist);
                                     current_track_artist = artist ? artist : "";
