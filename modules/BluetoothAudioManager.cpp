@@ -5,8 +5,8 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
-#include <dbus/dbus.h>
-#include <thread> // For asynchronous volume update
+#include <thread>
+#include <chrono>
 
 // Helper method to call a DBus method.
 static DBusMessage* CallMethod(DBusConnection* conn, const char* destination, const char* path,
@@ -163,7 +163,7 @@ void BluetoothAudioManager::Resume() {
     ignore_position_updates = false;
     time_since_last_dbus_position = 0.0f;
     
-    // Instead of unconditionally forcing playback_position to 0.01,
+    // If our internal playback_position is nearly zero,
     // query the current position from the media player.
     if (playback_position < 0.001f) {
         float pos = QueryCurrentPlaybackPosition();
@@ -579,7 +579,7 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                         dbus_message_iter_get_basic(&variant_iter, &pos_val);
                         new_position = static_cast<float>(pos_val) / 1000.0f;
                     }
-                    // Force update if we just resumed or the change is significant.
+                    // Update if we just resumed or the change is significant.
                     if (just_resumed || std::abs(new_position - playback_position) > 0.05f) {
                         playback_position = new_position;
                         time_since_last_dbus_position = 0.0f;
@@ -594,7 +594,6 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
     }
 }
 
-// NEW: Handler for InterfacesAdded signal.
 void BluetoothAudioManager::HandleInterfacesAdded(DBusMessage* msg) {
     DBusMessageIter iter;
     if (!dbus_message_iter_init(msg, &iter)) {
@@ -626,6 +625,18 @@ void BluetoothAudioManager::HandleInterfacesAdded(DBusMessage* msg) {
         if (interface_name && strcmp(interface_name, "org.bluez.MediaPlayer1") == 0) {
             std::cout << "DEBUG: New MediaPlayer1 interface added at: " << object_path << "\n";
             current_player_path = object_path;
+            // If no metadata has been loaded yet, query the status.
+            if (current_track_title.empty()) {
+                std::string status = QueryMediaPlayerStatus();
+                std::cout << "DEBUG: MediaPlayer1 status: " << status << "\n";
+                if (status == "playing") {
+                    // Trigger a resume refresh after a short delay.
+                    std::thread([this](){
+                        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                        Resume();
+                    }).detach();
+                }
+            }
             break;
         }
         dbus_message_iter_next(&interfaces_iter);
@@ -682,6 +693,49 @@ float BluetoothAudioManager::QueryCurrentPlaybackPosition() {
         }
     }
     return pos;
+}
+
+// NEW: Query the current media player Status property.
+std::string BluetoothAudioManager::QueryMediaPlayerStatus() {
+    if (current_player_path.empty() || !dbus_conn) {
+        return "";
+    }
+    DBusMessage* msg = dbus_message_new_method_call("org.bluez", current_player_path.c_str(),
+        "org.freedesktop.DBus.Properties", "Get");
+    if (!msg) {
+        std::cerr << "DEBUG: Failed to create DBus message to query Status.\n";
+        return "";
+    }
+    const char* iface = "org.bluez.MediaPlayer1";
+    const char* property = "Status";
+    dbus_message_append_args(msg,
+         DBUS_TYPE_STRING, &iface,
+         DBUS_TYPE_STRING, &property,
+         DBUS_TYPE_INVALID);
+    DBusError err;
+    dbus_error_init(&err);
+    DBusMessage* reply = dbus_connection_send_with_reply_and_block(dbus_conn, msg, -1, &err);
+    dbus_message_unref(msg);
+    std::string status = "";
+    if (reply && !dbus_error_is_set(&err)) {
+        DBusMessageIter iter;
+        if (dbus_message_iter_init(reply, &iter) &&
+            dbus_message_iter_get_arg_type(&iter) == DBUS_TYPE_VARIANT) {
+            DBusMessageIter variant;
+            dbus_message_iter_recurse(&iter, &variant);
+            if (dbus_message_iter_get_arg_type(&variant) == DBUS_TYPE_STRING) {
+                const char* stat = nullptr;
+                dbus_message_iter_get_basic(&variant, &stat);
+                status = stat ? std::string(stat) : "";
+            }
+        }
+        dbus_message_unref(reply);
+        std::cout << "DEBUG: QueryMediaPlayerStatus returned: " << status << "\n";
+    } else {
+        if (reply) dbus_message_unref(reply);
+        dbus_error_free(&err);
+    }
+    return status;
 }
 
 void BluetoothAudioManager::SendVolumeUpdate(int vol) {

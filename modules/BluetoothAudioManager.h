@@ -62,8 +62,11 @@ private:
     void HandlePropertiesChanged(DBusMessage* msg);
     void HandleInterfacesAdded(DBusMessage* msg);
 
-    // NEW: Declaration for querying current playback position.
+    // NEW: Query current playback position (in seconds).
     float QueryCurrentPlaybackPosition();
+
+    // NEW: Query current media player status ("playing", "paused", etc.).
+    std::string QueryMediaPlayerStatus();
 
     void SendVolumeUpdate(int vol);
 };
