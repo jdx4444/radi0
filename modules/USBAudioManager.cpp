@@ -7,6 +7,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cstdio>
+#include <random>
 
 // Path where the USB flash drive is mounted.
 static const std::string USB_MOUNT_PATH = "/media/jdx4444/Mustick";
@@ -73,6 +74,13 @@ bool USBAudioManager::Initialize() {
     if (!scanUSBDirectory()) {
         std::cerr << "No MP3 files found on USB drive.\n";
         return false;
+    }
+    // Shuffle the playlist to randomize playback order.
+    {
+        std::random_device rd;
+        std::mt19937 g(rd());
+        std::shuffle(playlist.begin(), playlist.end(), g);
+        currentTrackIndex = 0; // Reset to the first track after shuffling.
     }
     // Load the first track.
     loadCurrentTrack();
@@ -147,9 +155,8 @@ PlaybackState USBAudioManager::GetState() const {
 
 void USBAudioManager::Update(float delta_time) {
     if (state == PlaybackState::Playing) {
-        // Here we simply accumulate time. SDL_mixer does not provide a direct playback time query.
         playbackPosition += delta_time;
-        // If music has stopped playing (track finished), move to the next track.
+        // If music has finished playing, automatically move to the next track.
         if (!Mix_PlayingMusic()) {
             NextTrack();
         }
@@ -194,7 +201,9 @@ float USBAudioManager::GetCurrentPlaybackPosition() const {
     return playbackPosition;
 }
 
-// Private helper: scan the USB directory for MP3 files.
+// -----------------------------------------------------------------------------
+// Private Helper Functions
+// -----------------------------------------------------------------------------
 bool USBAudioManager::scanUSBDirectory() {
     DIR* dir = opendir(USB_MOUNT_PATH.c_str());
     if (!dir) {
@@ -217,20 +226,28 @@ bool USBAudioManager::scanUSBDirectory() {
     return !playlist.empty();
 }
 
-// Private helper: load the current track using SDL_mixer.
+// Loads the current track into memory using SDL_RWops.
 void USBAudioManager::loadCurrentTrack() {
     if (playlist.empty())
         return;
     unloadCurrentTrack();
     const TrackInfo &track = playlist[currentTrackIndex];
-    currentMusic = Mix_LoadMUS(track.filePath.c_str());
+    
+    // Open the file in binary mode.
+    SDL_RWops* rw = SDL_RWFromFile(track.filePath.c_str(), "rb");
+    if (!rw) {
+        std::cerr << "Failed to open file " << track.filePath << "\n";
+        return;
+    }
+    // Load the music from the RWops.
+    // The second parameter (1) tells SDL_mixer to free the RWops automatically.
+    currentMusic = Mix_LoadMUS_RW(rw, 1);
     if (!currentMusic) {
-        std::cerr << "Failed to load track: " << track.filePath
-                  << " Error: " << Mix_GetError() << "\n";
+        std::cerr << "Failed to load track from memory: " << Mix_GetError() << "\n";
     }
 }
 
-// Private helper: free the currently loaded track.
+// Frees the currently loaded track.
 void USBAudioManager::unloadCurrentTrack() {
     if (currentMusic) {
         Mix_FreeMusic(currentMusic);
