@@ -750,3 +750,22 @@ void BluetoothAudioManager::SendVolumeUpdate(int vol) {
         std::system(command.c_str());
     }).detach();
 }
+
+// -----------------------------------------------------------------------------
+// Out-of-line Definitions for Accessor Methods
+// -----------------------------------------------------------------------------
+std::string BluetoothAudioManager::GetCurrentTrackTitle() const {
+    return current_track_title;
+}
+
+std::string BluetoothAudioManager::GetCurrentTrackArtist() const {
+    return current_track_artist;
+}
+
+float BluetoothAudioManager::GetCurrentTrackDuration() const {
+    return current_track_duration;
+}
+
+float BluetoothAudioManager::GetCurrentPlaybackPosition() const {
+    return playback_position;
+}
