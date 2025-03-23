@@ -4,7 +4,7 @@
 #include "IAudioManager.h"
 #include <vector>
 #include <string>
-#include <SDL_mixer.h>   // Added: for Mix_Music definition
+#include <SDL_mixer.h>   // For Mix_Music definition
 
 // Structure to hold track metadata.
 struct TrackInfo {
@@ -43,6 +43,10 @@ public:
     virtual float GetCurrentTrackDuration() const override;
     virtual float GetCurrentPlaybackPosition() const override;
 
+    // New methods for gain adjustment.
+    void SetGain(float factor);
+    float GetGain() const;
+
 private:
     bool scanUSBDirectory();
     void loadCurrentTrack();
@@ -51,12 +55,15 @@ private:
     std::vector<TrackInfo> playlist;
     int currentTrackIndex;
     PlaybackState state;
-    int volume; // 0-128 range
-
+    int volume; // Current effective volume (0-128)
     float playbackPosition; // in seconds
 
     // SDL_mixer music pointer
     Mix_Music* currentMusic;
+
+    // New private members for volume gain control.
+    int baseVolume;      // The user-set base volume (before gain)
+    float gainFactor;    // Multiplier for adjusting the effective volume
 };
 
 #endif // USB_AUDIO_MANAGER_H

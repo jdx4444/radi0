@@ -33,7 +33,7 @@ static DBusMessage* CallMethod(DBusConnection* conn, const char* destination, co
 // -----------------------------------------------------------------------------
 BluetoothAudioManager::BluetoothAudioManager()
     : state(PlaybackState::Stopped),
-      volume(20),  // Lower initial volume (about 16%)
+      volume(20),  // initial volume (about 16%)
       current_player_path(""),
       current_track_title(""),
       current_track_artist(""),

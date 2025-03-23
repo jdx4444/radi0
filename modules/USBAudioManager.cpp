@@ -20,7 +20,8 @@ static bool directoryExists(const std::string &path) {
 }
 
 // Updated utility function to parse a filename into artist, title, and duration.
-// Assumes the filename is of the form "Artist Name - Track Name - XmYYs.mp3"
+// Expects the filename in the format: "Artist Name - Track Name - XmYYs.mp3"
+// For example: "Tigers Jaw - Do You Really Wanna Know - 3m45s.mp3"
 static void parseFilename(const std::string &filename, std::string &artist, std::string &title, float &duration) {
     // Remove extension.
     std::string base = filename;
@@ -73,7 +74,9 @@ static void parseFilename(const std::string &filename, std::string &artist, std:
 USBAudioManager::USBAudioManager()
     : currentTrackIndex(0),
       state(PlaybackState::Stopped),
-      volume(20),  // 20 is roughly 16% of 128
+      volume(64),
+      baseVolume(64),      // Initial base volume (0–MIX_MAX_VOLUME)
+      gainFactor(0.50f),    // Default gain factor (1.0 = no change)
       playbackPosition(0.0f),
       currentMusic(nullptr)
 {
@@ -167,8 +170,12 @@ void USBAudioManager::PreviousTrack() {
 }
 
 void USBAudioManager::SetVolume(int vol) {
-    volume = std::clamp(vol, 0, 128);
-    Mix_VolumeMusic(volume);  // SDL_mixer volume range is 0–128
+    baseVolume = std::clamp(vol, 0, MIX_MAX_VOLUME);
+    int effectiveVolume = static_cast<int>(baseVolume * gainFactor);
+    if (effectiveVolume > MIX_MAX_VOLUME)
+        effectiveVolume = MIX_MAX_VOLUME;
+    Mix_VolumeMusic(effectiveVolume);
+    volume = effectiveVolume;
 }
 
 int USBAudioManager::GetVolume() const {
@@ -225,6 +232,17 @@ float USBAudioManager::GetCurrentTrackDuration() const {
 
 float USBAudioManager::GetCurrentPlaybackPosition() const {
     return playbackPosition;
+}
+
+// New methods to adjust and retrieve the gain factor.
+void USBAudioManager::SetGain(float factor) {
+    gainFactor = factor;
+    // Reapply the volume using the new gain factor.
+    SetVolume(baseVolume);
+}
+
+float USBAudioManager::GetGain() const {
+    return gainFactor;
 }
 
 // -----------------------------------------------------------------------------
