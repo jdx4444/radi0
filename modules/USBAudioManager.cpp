@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <random>
+#include <vector>
 
 // Path where the USB flash drive is mounted.
 static const std::string USB_MOUNT_PATH = "/media/jdx4444/Mustick";
@@ -19,7 +20,7 @@ static bool directoryExists(const std::string &path) {
 }
 
 // Updated utility function to parse a filename into artist, title, and duration.
-// Assumes the filename is of the form "Artist Name - Track Name - mm:ss.mp3"
+// Assumes the filename is of the form "Artist Name - Track Name - XmYYs.mp3"
 static void parseFilename(const std::string &filename, std::string &artist, std::string &title, float &duration) {
     // Remove extension.
     std::string base = filename;
@@ -39,16 +40,17 @@ static void parseFilename(const std::string &filename, std::string &artist, std:
     }
     parts.push_back(base.substr(start));
     
-    // Expecting three parts: artist, title, and duration in mm:ss.
+    // Expecting three parts: artist, title, and duration in "XmYYs" format.
     if (parts.size() >= 3) {
         artist = parts[0];
         title = parts[1];
         std::string durationStr = parts[2];
-        size_t colonPos = durationStr.find(":");
-        if (colonPos != std::string::npos) {
+        size_t mPos = durationStr.find("m");
+        size_t sPos = durationStr.find("s", mPos);
+        if (mPos != std::string::npos && sPos != std::string::npos) {
             try {
-                int minutes = std::stoi(durationStr.substr(0, colonPos));
-                int seconds = std::stoi(durationStr.substr(colonPos + 1));
+                int minutes = std::stoi(durationStr.substr(0, mPos));
+                int seconds = std::stoi(durationStr.substr(mPos + 1, sPos - (mPos + 1)));
                 duration = static_cast<float>(minutes * 60 + seconds);
             } catch (...) {
                 duration = 0.0f;
