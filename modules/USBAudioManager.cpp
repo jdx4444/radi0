@@ -18,30 +18,54 @@ static bool directoryExists(const std::string &path) {
     return (stat(path.c_str(), &info) == 0 && (info.st_mode & S_IFDIR));
 }
 
-// Utility function to parse a filename into artist and title.
-// Assumes the filename is of the form "Artist name - Song name.mp3"
-static void parseFilename(const std::string &filename, std::string &artist, std::string &title) {
-    size_t dashPos = filename.find(" - ");
-    if (dashPos != std::string::npos) {
-        artist = filename.substr(0, dashPos);
-        size_t dotPos = filename.find_last_of('.');
-        if (dotPos != std::string::npos && dotPos > dashPos) {
-            title = filename.substr(dashPos + 3, dotPos - dashPos - 3);
-        } else {
-            title = filename.substr(dashPos + 3);
-        }
-    } else {
-        // If not in expected format, use the filename (without extension) as title.
-        size_t dotPos = filename.find_last_of('.');
-        title = (dotPos != std::string::npos) ? filename.substr(0, dotPos) : filename;
-        artist = "Unknown Artist";
+// Updated utility function to parse a filename into artist, title, and duration.
+// Assumes the filename is of the form "Artist Name - Track Name - mm:ss.mp3"
+static void parseFilename(const std::string &filename, std::string &artist, std::string &title, float &duration) {
+    // Remove extension.
+    std::string base = filename;
+    size_t dotPos = filename.find_last_of('.');
+    if (dotPos != std::string::npos) {
+        base = filename.substr(0, dotPos);
     }
-}
-
-// Stub function to extract track duration from an MP3 file.
-// In a full implementation you might use a library (e.g., TagLib) to extract this.
-static float extractDuration(const std::string &filePath) {
-    return 180.0f; // Default to 180 seconds for testing
+    
+    // Split based on " - "
+    std::vector<std::string> parts;
+    size_t start = 0;
+    size_t pos = base.find(" - ");
+    while (pos != std::string::npos) {
+        parts.push_back(base.substr(start, pos - start));
+        start = pos + 3; // length of " - "
+        pos = base.find(" - ", start);
+    }
+    parts.push_back(base.substr(start));
+    
+    // Expecting three parts: artist, title, and duration in mm:ss.
+    if (parts.size() >= 3) {
+        artist = parts[0];
+        title = parts[1];
+        std::string durationStr = parts[2];
+        size_t colonPos = durationStr.find(":");
+        if (colonPos != std::string::npos) {
+            try {
+                int minutes = std::stoi(durationStr.substr(0, colonPos));
+                int seconds = std::stoi(durationStr.substr(colonPos + 1));
+                duration = static_cast<float>(minutes * 60 + seconds);
+            } catch (...) {
+                duration = 0.0f;
+            }
+        } else {
+            duration = 0.0f;
+        }
+    } else if (parts.size() == 2) {
+        // Fallback if duration is not provided.
+        artist = parts[0];
+        title = parts[1];
+        duration = 0.0f;
+    } else {
+        title = base;
+        artist = "Unknown Artist";
+        duration = 0.0f;
+    }
 }
 
 USBAudioManager::USBAudioManager()
@@ -217,8 +241,10 @@ bool USBAudioManager::scanUSBDirectory() {
             std::string fullPath = USB_MOUNT_PATH + "/" + filename;
             TrackInfo info;
             info.filePath = fullPath;
-            parseFilename(filename, info.artist, info.title);
-            info.duration = extractDuration(fullPath);  // Stubbed duration
+            float fileDuration = 0.0f;
+            // Parse artist, title, and duration from the filename.
+            parseFilename(filename, info.artist, info.title, fileDuration);
+            info.duration = fileDuration; // duration in seconds
             playlist.push_back(info);
         }
     }
