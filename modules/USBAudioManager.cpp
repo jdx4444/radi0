@@ -73,7 +73,7 @@ static void parseFilename(const std::string &filename, std::string &artist, std:
 USBAudioManager::USBAudioManager()
     : currentTrackIndex(0),
       state(PlaybackState::Stopped),
-      volume(64),
+      volume(20),  // 20 is roughly 16% of 128
       playbackPosition(0.0f),
       currentMusic(nullptr)
 {

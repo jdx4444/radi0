@@ -153,20 +153,16 @@ void UI::DrawMaskBars(ImDrawList* draw_list,
                       float offset_x,
                       float offset_y)
 {
-    float mask_width  = 5.0f;
-    float mask_height = 3.0f;
-    ImVec2 left_top  = ToPixels(layout.progressBarStartX - mask_width,
-                                layout.progressBarY - mask_height,
-                                scale, offset_x, offset_y);
-    ImVec2 left_bot  = ToPixels(layout.progressBarStartX,
-                                layout.progressBarY + mask_height,
-                                scale, offset_x, offset_y);
-    ImVec2 right_top = ToPixels(layout.progressBarEndX,
-                                layout.progressBarY - mask_height,
-                                scale, offset_x, offset_y);
-    ImVec2 right_bot = ToPixels(layout.progressBarEndX + mask_width,
-                                layout.progressBarY + mask_height,
-                                scale, offset_x, offset_y);
+    float mask_height = 3.0f; // Keep the mask height as is.
+
+    // Left mask bar: from the left edge (0.0f) to progressBarStartX.
+    ImVec2 left_top  = ToPixels(0.0f, layout.progressBarY - mask_height, scale, offset_x, offset_y);
+    ImVec2 left_bot  = ToPixels(layout.progressBarStartX, layout.progressBarY + mask_height, scale, offset_x, offset_y);
+
+    // Right mask bar: from progressBarEndX to the right edge (80.0f).
+    ImVec2 right_top = ToPixels(layout.progressBarEndX, layout.progressBarY - mask_height, scale, offset_x, offset_y);
+    ImVec2 right_bot = ToPixels(80.0f, layout.progressBarY + mask_height, scale, offset_x, offset_y);
+
     draw_list->AddRectFilled(left_top, left_bot, COLOR_BLACK);
     draw_list->AddRectFilled(right_top, right_bot, COLOR_BLACK);
 }
