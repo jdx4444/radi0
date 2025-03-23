@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <SDL.h>
+#include <sys/stat.h>
+#include <memory>
 #ifdef __APPLE__
 #include <OpenGL/gl3.h>
 #else
@@ -10,24 +12,24 @@
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_opengl3.h"
 
-#include "modules/BluetoothAudioManager.h"
-#include "modules/USBAudioManager.h"
-#include "modules/IAudioManager.h"
+// Include both audio managers and the common interface.
+#include "IAudioManager.h"
+#include "BluetoothAudioManager.h"  // Existing module
+#include "USBAudioManager.h"        // New module
+
 #include "modules/Sprite.h"
 #include "modules/UI.h"
-#include <algorithm>
-#include <memory>
-#include <filesystem>
+#include <algorithm> // for std::min
 
-namespace fs = std::filesystem;
+// Utility function to check if a directory exists.
+bool directoryExists(const char *path) {
+    struct stat info;
+    return (stat(path, &info) == 0 && (info.st_mode & S_IFDIR));
+}
 
-// Define virtual resolution (80×25 virtual units)
+// Define a virtual coordinate system that matches the display's aspect ratio (80×25)
 static const float VIRTUAL_WIDTH = 80.0f;
 static const float VIRTUAL_HEIGHT = 25.0f;
-
-bool isUSBPresent() {
-    return fs::exists("/media/usb") && fs::is_directory("/media/usb");
-}
 
 int main(int, char**)
 {
@@ -37,6 +39,7 @@ int main(int, char**)
         return -1;
     }
 
+    // Use OpenGL 130 GLSL version (targeting Linux/DBus mode)
     const char* glsl_version = "#version 130";
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
@@ -47,6 +50,7 @@ int main(int, char**)
     SDL_SetHint(SDL_HINT_IME_SHOW_UI, "1");
 #endif
 
+    // Get current screen resolution
     SDL_DisplayMode DM;
     if (SDL_GetCurrentDisplayMode(0, &DM) != 0)
     {
@@ -56,6 +60,7 @@ int main(int, char**)
     int window_width = DM.w;
     int window_height = DM.h;
 
+    // Compute unified scale factor (preserving aspect ratio) and center offsets
     float scale = std::min(static_cast<float>(window_width) / VIRTUAL_WIDTH,
                            static_cast<float>(window_height) / VIRTUAL_HEIGHT);
     float offset_x = (window_width - VIRTUAL_WIDTH * scale) * 0.5f;
@@ -65,6 +70,7 @@ int main(int, char**)
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
 
+    // Create a borderless fullscreen window at the detected resolution
     SDL_WindowFlags window_flags = (SDL_WindowFlags)(
         SDL_WINDOW_OPENGL |
         SDL_WINDOW_ALLOW_HIGHDPI |
@@ -83,6 +89,7 @@ int main(int, char**)
         return -1;
     }
     
+    // Hide the cursor for a cleaner UI
     SDL_SetRelativeMouseMode(SDL_TRUE);
     printf("Cursor state after disabling: %d\n", SDL_ShowCursor(-1));
 
@@ -97,11 +104,13 @@ int main(int, char**)
     SDL_GL_MakeCurrent(window, gl_context);
     SDL_GL_SetSwapInterval(1);
 
+    // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.Fonts->AddFontDefault();
 
+    // Retro style: update to new color scheme (hex #6dfe95)
     ImGui::StyleColorsDark();
     ImGuiStyle& style = ImGui::GetStyle();
     style.WindowRounding = 0.0f;
@@ -118,28 +127,30 @@ int main(int, char**)
     ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
+    // AUDIO MANAGER SELECTION:
+    // If the USB drive is present, use USBAudioManager; otherwise, fall back to BluetoothAudioManager.
     std::unique_ptr<IAudioManager> audioManager;
-    bool usbModeActive = false;
-    if (isUSBPresent()) {
-        audioManager = std::make_unique<USBAudioManager>();
-        usbModeActive = true;
-        printf("USB detected at startup. Entering USB mode.\n");
+    if (directoryExists("/media/jdx4444/Mustick")) {
+         audioManager = std::make_unique<USBAudioManager>();
+         printf("Using USB Audio Manager.\n");
     } else {
-        audioManager = std::make_unique<BluetoothAudioManager>();
+         audioManager = std::make_unique<BluetoothAudioManager>();
+         printf("Using Bluetooth Audio Manager.\n");
     }
-    if (!audioManager->Initialize()) {
+    
+    if (!audioManager->Initialize())
+    {
         printf("Failed to initialize audio manager.\n");
         return -1;
     }
     
     audioManager->Play();
 
+    // Initialize Sprite and UI modules
     Sprite sprite;
     sprite.Initialize(scale);
     UI ui;
     ui.Initialize();
-
-    float usbCheckTimer = 0.0f;
 
     bool done = false;
     while (!done)
@@ -154,8 +165,11 @@ int main(int, char**)
                 done = true;
             if (event.type == SDL_KEYDOWN)
             {
+                // Press "e" to exit
                 if (event.key.keysym.sym == SDLK_e)
+                {
                     done = true;
+                }
                 switch (event.key.keysym.sym)
                 {
                     case SDLK_SPACE:
@@ -184,38 +198,26 @@ int main(int, char**)
             }
         }
 
-        audioManager->Update(io.DeltaTime);
-
-        usbCheckTimer += io.DeltaTime;
-        if (usbCheckTimer >= 2.0f) {
-            bool usbNow = isUSBPresent();
-            if (usbNow != usbModeActive) {
-                printf("USB mode change detected. Switching audio manager.\n");
-                audioManager->Shutdown();
-                if (usbNow) {
-                    audioManager = std::make_unique<USBAudioManager>();
-                } else {
-                    audioManager = std::make_unique<BluetoothAudioManager>();
-                }
-                if (!audioManager->Initialize()) {
-                    printf("Failed to reinitialize audio manager after mode switch.\n");
-                }
-                usbModeActive = usbNow;
-            }
-            usbCheckTimer = 0.0f;
-        }
-
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
-        ui.Render(ImGui::GetBackgroundDrawList(), *audioManager, sprite, scale, offset_x, offset_y, window_width, window_height);
+        // Update audio manager
+        audioManager->Update(io.DeltaTime);
 
-        if (usbModeActive) {
-            ImVec2 textSize = ImGui::CalcTextSize("USB Mode");
-            ImVec2 pos((window_width - textSize.x) * 0.5f, 10);
-            ImGui::GetBackgroundDrawList()->AddText(pos, IM_COL32(109,254,149,255), "USB Mode");
-        }
+        // Draw a fullscreen ImGui window for the head unit UI
+        ImGuiWindowFlags wf = ImGuiWindowFlags_NoResize |
+                              ImGuiWindowFlags_NoMove |
+                              ImGuiWindowFlags_NoTitleBar |
+                              ImGuiWindowFlags_NoScrollbar |
+                              ImGuiWindowFlags_NoScrollWithMouse;
+        ImGui::SetNextWindowPos(ImVec2(0, 0));
+        ImGui::SetNextWindowSize(ImVec2(static_cast<float>(window_width), static_cast<float>(window_height)));
+        ImGui::Begin("Car Head Unit", nullptr, wf);
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+        // Pass unified scale, offsets, and physical dimensions to UI
+        ui.Render(draw_list, *audioManager, sprite, scale, offset_x, offset_y, window_width, window_height);
+        ImGui::End();
 
         ImGui::Render();
         glViewport(0, 0, window_width, window_height);
@@ -225,6 +227,7 @@ int main(int, char**)
         SDL_GL_SwapWindow(window);
     }
 
+    // Cleanup
     ui.Cleanup();
     audioManager->Shutdown();
 

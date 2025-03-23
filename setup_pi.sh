@@ -30,10 +30,6 @@ sudo apt-get install -y libdbus-1-dev
 echo "Installing OpenGL development libraries..."
 sudo apt-get install -y libgl1-mesa-dev
 
-# Install TagLib development libraries
-echo "Installing TagLib development libraries..."
-sudo apt-get install -y libtag1-dev
-
 # Install additional dependencies if any (e.g., pkg-config)
 echo "Installing additional dependencies..."
 sudo apt-get install -y pkg-config

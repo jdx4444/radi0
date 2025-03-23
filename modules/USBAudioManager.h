@@ -4,61 +4,59 @@
 #include "IAudioManager.h"
 #include <vector>
 #include <string>
-#include "SDL_mixer.h"
-#include "SDL.h" // for SDL_GetTicks()
+#include <SDL_mixer.h>   // Added: for Mix_Music definition
+
+// Structure to hold track metadata.
+struct TrackInfo {
+    std::string filePath;
+    std::string artist;
+    std::string title;
+    float duration; // in seconds
+};
 
 class USBAudioManager : public IAudioManager {
 public:
     USBAudioManager();
     virtual ~USBAudioManager();
 
-    bool Initialize() override;
-    void Shutdown() override;
+    virtual bool Initialize() override;
+    virtual void Shutdown() override;
 
-    void Play() override;
-    void Pause() override;
-    void Resume() override;
-    void NextTrack() override;
-    void PreviousTrack() override;
+    virtual void Play() override;
+    virtual void Pause() override;
+    virtual void Resume() override;
+    virtual void NextTrack() override;
+    virtual void PreviousTrack() override;
 
-    void SetVolume(int vol) override;
-    int GetVolume() const override;
+    virtual void SetVolume(int volume) override;
+    virtual int GetVolume() const override;
 
-    void Update(float delta_time) override;
+    virtual PlaybackState GetState() const override;
 
-    std::string GetCurrentTrackTitle() const override;
-    std::string GetCurrentTrackArtist() const override;
-    float GetCurrentTrackDuration() const override;
-    float GetCurrentPlaybackPosition() const override;
+    virtual void Update(float delta_time) override;
 
-    PlaybackState GetState() const override;
+    virtual float GetPlaybackFraction() const override;
+    virtual std::string GetTimeRemaining() const override;
+
+    virtual std::string GetCurrentTrackTitle() const override;
+    virtual std::string GetCurrentTrackArtist() const override;
+    virtual float GetCurrentTrackDuration() const override;
+    virtual float GetCurrentPlaybackPosition() const override;
 
 private:
-    struct Track {
-        std::string filePath;
-        std::string artist;
-        std::string title;
-        float duration; // in seconds
-    };
+    bool scanUSBDirectory();
+    void loadCurrentTrack();
+    void unloadCurrentTrack();
 
-    std::vector<Track> tracks;
+    std::vector<TrackInfo> playlist;
     int currentTrackIndex;
     PlaybackState state;
-    int volume; // volume scale 0-128
+    int volume; // 0-128 range
+
+    float playbackPosition; // in seconds
+
+    // SDL_mixer music pointer
     Mix_Music* currentMusic;
-
-    // Timing for playback progress:
-    Uint32 trackStartTicks; // When the current track (or resumed track) started
-    Uint32 pausedTicks;     // Time accumulated when paused
-
-    // Scans the fixed USB mount directory for .mp3 files.
-    void ScanForTracks();
-    // Parses a filename "Artist Name - Song Name.mp3" into artist and title.
-    void ParseTrackFilename(const std::string &filename, std::string &artist, std::string &title);
-    // Reads the track duration (in seconds) using TagLib.
-    float GetTrackDuration(const std::string &path);
-    // Begins playback of the track at the given index.
-    void StartTrack(int index);
 };
 
 #endif // USB_AUDIO_MANAGER_H
