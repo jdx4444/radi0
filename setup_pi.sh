@@ -18,6 +18,10 @@ sudo apt-get install -y build-essential git cmake
 echo "Installing SDL2 development libraries..."
 sudo apt-get install -y libsdl2-dev
 
+# Install SDL2_mixer development libraries
+echo "Installing SDL2_mixer development libraries..."
+sudo apt-get install -y libsdl2-mixer-dev
+
 # Install D-Bus development libraries
 echo "Installing D-Bus development libraries..."
 sudo apt-get install -y libdbus-1-dev
@@ -25,6 +29,10 @@ sudo apt-get install -y libdbus-1-dev
 # Install OpenGL development libraries
 echo "Installing OpenGL development libraries..."
 sudo apt-get install -y libgl1-mesa-dev
+
+# Install TagLib development libraries
+echo "Installing TagLib development libraries..."
+sudo apt-get install -y libtag1-dev
 
 # Install additional dependencies if any (e.g., pkg-config)
 echo "Installing additional dependencies..."

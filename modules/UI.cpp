@@ -2,12 +2,10 @@
 #include <algorithm>
 #include <string>
 #include <cmath>
+#include "imgui.h"
 
-// Define some colors (using the new hex #6dfe95)
 const ImU32 COLOR_GREEN = IM_COL32(109, 254, 149, 255);
 const ImU32 COLOR_BLACK = IM_COL32(0, 0, 0, 255);
-
-// A constant for PI.
 static const float PI = 3.1415926f;
 
 UI::UI() {}
@@ -19,7 +17,7 @@ void UI::Initialize()
 }
 
 void UI::Render(ImDrawList* draw_list,
-                BluetoothAudioManager& audioManager,
+                IAudioManager& audioManager,
                 Sprite& sprite,
                 float scale,
                 float offset_x,
@@ -27,17 +25,19 @@ void UI::Render(ImDrawList* draw_list,
                 int window_width,
                 int window_height)
 {
-    // 1) Draw the volume indicator (sun/moon) behind the progress line.
+    // 1. Draw the volume indicator (sun/moon).
     DrawVolumeSun(draw_list, audioManager, scale, offset_x, offset_y);
-    
-    // 2) Draw the progress line.
+    // 2. Draw the progress line.
     DrawProgressLine(draw_list, audioManager, scale, offset_x, offset_y);
-    
-    // 3) Draw the car sprite and its mask bars.
-    constexpr float spriteVirtualWidth = 19 * 0.16f; // ~3.04 virtual units.
+    // 3. Update and draw the sprite.
+    constexpr float spriteVirtualWidth = 19 * 0.16f;
     float effectiveStartX = layout.progressBarStartX - spriteVirtualWidth + layout.spriteXCorrection;
     float effectiveEndX   = layout.progressBarEndX + layout.spriteXCorrection;
-    sprite.UpdatePosition(audioManager.GetPlaybackFraction(),
+    float trackDuration = audioManager.GetCurrentTrackDuration();
+    float progress = 0.0f;
+    if (trackDuration > 0.0f)
+        progress = audioManager.GetCurrentPlaybackPosition() / trackDuration;
+    sprite.UpdatePosition(progress,
                           effectiveStartX, effectiveEndX,
                           scale, offset_x, offset_y,
                           layout.spriteXOffset,
@@ -45,31 +45,23 @@ void UI::Render(ImDrawList* draw_list,
                           layout.spriteBaseY);
     sprite.Draw(draw_list, COLOR_GREEN);
     DrawMaskBars(draw_list, scale, offset_x, offset_y);
-    
-    // 4) Draw the artist and track info on top.
+    // 4. Draw track info.
     DrawArtistAndTrackInfo(draw_list, audioManager, scale, offset_x, offset_y);
-
-    // 5) Draw the custom outer border relative to the physical display edges.
-    // Outer border horizontal padding is computed from 2.0 virtual units,
-    // but vertical padding is reduced by 1.0 virtual unit.
+    // 5. Draw borders.
     float padX = std::round(layout.borderPadding * (window_width / 80.0f));
     float padY = std::round((layout.borderPadding - 1.0f) * (window_height / 25.0f));
     
     ImVec2 borderTopLeft(padX, padY);
     ImVec2 borderBottomRight(window_width - padX, window_height - padY);
     
-    // Outer border drawn with a thickness of 2.0f.
     draw_list->AddRect(borderTopLeft, borderBottomRight, COLOR_GREEN, 0.0f, 0, 2.0f);
     
-    // 6) Draw an inner border inside the outer border.
-    // Here we maintain the full 2.0 virtual unit padding.
     float innerPadX = std::round(layout.borderPadding * (window_width / 80.0f));
     float innerPadY = std::round(layout.borderPadding * (window_height / 25.0f));
     
     ImVec2 innerBorderTopLeft(borderTopLeft.x + innerPadX, borderTopLeft.y + innerPadY);
     ImVec2 innerBorderBottomRight(borderBottomRight.x - innerPadX, borderBottomRight.y - innerPadY);
     
-    // Inner border drawn with a thickness of 1.0f.
     draw_list->AddRect(innerBorderTopLeft, innerBorderBottomRight, COLOR_GREEN, 0.0f, 0, 1.0f);
 }
 
@@ -79,7 +71,7 @@ void UI::Cleanup()
 }
 
 void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
-                                BluetoothAudioManager& audioManager,
+                                IAudioManager& audioManager,
                                 float scale,
                                 float offset_x,
                                 float offset_y)
@@ -89,7 +81,6 @@ void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
     if (artist_name.empty()) artist_name = "Unknown Artist";
     if (track_name.empty()) track_name  = "Unknown Track";
     
-    // Artist text region.
     ImVec2 artistPos = ToPixels(layout.artistTextX, layout.artistTextY, scale, offset_x, offset_y);
     float artistRegionWidth_px = layout.artistTextWidth * scale;
     ImGui::SetWindowFontScale(1.6f);
@@ -111,7 +102,6 @@ void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
     draw_list->PopClipRect();
     ImGui::SetWindowFontScale(1.0f);
     
-    // Track text region (right-aligned).
     ImVec2 trackPos = ToPixels(layout.trackTextX, layout.trackTextY, scale, offset_x, offset_y);
     float trackRegionWidth_px = layout.trackTextWidth * scale;
     ImGui::SetWindowFontScale(1.6f);
@@ -136,7 +126,7 @@ void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
 }
 
 void UI::DrawProgressLine(ImDrawList* draw_list,
-                          BluetoothAudioManager& /*audioManager*/,
+                          IAudioManager& /*audioManager*/,
                           float scale,
                           float offset_x,
                           float offset_y)
@@ -171,7 +161,7 @@ void UI::DrawMaskBars(ImDrawList* draw_list,
 }
 
 void UI::DrawVolumeSun(ImDrawList* draw_list,
-                       BluetoothAudioManager& audioManager,
+                       IAudioManager& audioManager,
                        float scale,
                        float offset_x,
                        float offset_y)
