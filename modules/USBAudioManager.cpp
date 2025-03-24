@@ -75,8 +75,8 @@ USBAudioManager::USBAudioManager()
     : currentTrackIndex(0),
       state(PlaybackState::Stopped),
       volume(64),
-      baseVolume(64),      // Initial base volume (0–MIX_MAX_VOLUME)
-      gainFactor(0.50f),    // Default gain factor (1.0 = no change)
+      baseVolume(64),      // User-set volume (0 to MIX_MAX_VOLUME)
+      gainFactor(0.75f),    // Default gain factor (1.0 means no change)
       playbackPosition(0.0f),
       currentMusic(nullptr)
 {
@@ -169,17 +169,18 @@ void USBAudioManager::PreviousTrack() {
     Play();
 }
 
+// Updated SetVolume: The UI uses baseVolume (full range), while effective volume = baseVolume * gainFactor.
 void USBAudioManager::SetVolume(int vol) {
     baseVolume = std::clamp(vol, 0, MIX_MAX_VOLUME);
     int effectiveVolume = static_cast<int>(baseVolume * gainFactor);
     if (effectiveVolume > MIX_MAX_VOLUME)
         effectiveVolume = MIX_MAX_VOLUME;
     Mix_VolumeMusic(effectiveVolume);
-    volume = effectiveVolume;
+    // Note: GetVolume() returns baseVolume, so the UI sees the full range.
 }
 
 int USBAudioManager::GetVolume() const {
-    return volume;
+    return baseVolume;
 }
 
 PlaybackState USBAudioManager::GetState() const {
@@ -234,10 +235,10 @@ float USBAudioManager::GetCurrentPlaybackPosition() const {
     return playbackPosition;
 }
 
-// New methods to adjust and retrieve the gain factor.
+// New methods for gain adjustment.
 void USBAudioManager::SetGain(float factor) {
     gainFactor = factor;
-    // Reapply the volume using the new gain factor.
+    // Reapply volume with the new gain factor.
     SetVolume(baseVolume);
 }
 
