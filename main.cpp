@@ -171,6 +171,8 @@ int main(int, char**)
                                 printf("No paired phone found. Remaining in USB mode.\n");
                             } else {
                                 audioManager->Shutdown();
+                                // Optionally, delay a bit to let the audio subsystem settle.
+                                SDL_Delay(500);
                                 audioManager = std::move(tempBt);
                                 currentAudioMode = BLUETOOTH_MODE;
                                 printf("Switched to Bluetooth Audio Manager.\n");
@@ -180,10 +182,18 @@ int main(int, char**)
                             // Switch to USB mode if USB drive is available.
                             if (directoryExists("/media/jdx4444/Mustick")) {
                                 audioManager->Shutdown();
+                                // Explicitly shut down the audio subsystem.
+                                SDL_QuitSubSystem(SDL_INIT_AUDIO);
+                                // Wait a bit to ensure the drive is ready and the subsystem resets.
+                                SDL_Delay(1500);
                                 audioManager = std::make_unique<USBAudioManager>();
                                 currentAudioMode = USB_MODE;
                                 printf("Switched to USB Audio Manager.\n");
-                                audioManager->Play();
+                                if (!audioManager->Initialize()) {
+                                    printf("Failed to reinitialize USB Audio Manager.\n");
+                                } else {
+                                    audioManager->Play();
+                                }
                             } else {
                                 printf("USB drive not available. Remaining in Bluetooth mode.\n");
                             }

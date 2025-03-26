@@ -91,12 +91,13 @@ bool USBAudioManager::Initialize() {
         std::cerr << "USB drive not found at " << USB_MOUNT_PATH << "\n";
         return false;
     }
-    // Wait a short time to allow the USB drive to settle.
-    SDL_Delay(1000);  // delay for 1 second
-
-    // Clear any previously scanned playlist.
+    // Clear any previous playlist.
     playlist.clear();
 
+    // Wait a short time to allow the USB drive to settle.
+    SDL_Delay(1000);  // 1 second delay
+
+    // (Re)initialize the audio subsystem for this manager.
     if (SDL_Init(SDL_INIT_AUDIO) < 0) {
         std::cerr << "SDL audio initialization failed: " << SDL_GetError() << "\n";
         return false;
@@ -110,12 +111,13 @@ bool USBAudioManager::Initialize() {
         std::cerr << "No MP3 files found on USB drive.\n";
         return false;
     }
-    // Shuffle the playlist to randomize playback order.
+    printf("Found %zu MP3 file(s) on USB drive.\n", playlist.size());
+    // Shuffle the playlist.
     {
         std::random_device rd;
         std::mt19937 g(rd());
         std::shuffle(playlist.begin(), playlist.end(), g);
-        currentTrackIndex = 0; // Reset to the first track after shuffling.
+        currentTrackIndex = 0;
     }
     // Load the first track.
     loadCurrentTrack();
