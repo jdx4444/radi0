@@ -144,7 +144,8 @@ int main(int, char**)
     ui.Initialize();
 
     bool done = false;
-    int ePressCount = 0; // Counter for consecutive 'e' presses.
+    int ePressCount = 0;         // Counter for consecutive 'e' presses.
+    Uint32 lastEPressTime = 0;   // Timestamp of the last 'e' key press (in ms).
 
     while (!done)
     {
@@ -159,13 +160,18 @@ int main(int, char**)
             if (event.type == SDL_KEYDOWN)
             {
                 SDL_Keycode key = event.key.keysym.sym;
+                Uint32 currentTime = SDL_GetTicks();
                 if (key == SDLK_x) {
                     // 'x' key exits the program.
                     done = true;
                 }
                 else if (key == SDLK_e) {
-                    // 'e' key is used for mode switching.
+                    // Check if more than 5 seconds have passed since the last 'e' press.
+                    if (currentTime - lastEPressTime > 5000) {
+                        ePressCount = 0;
+                    }
                     ePressCount++;
+                    lastEPressTime = currentTime;  // Update timestamp for the latest 'e'
                     if (ePressCount >= 4) {
                         // Switch audio mode.
                         audioManager->Shutdown();
@@ -182,7 +188,6 @@ int main(int, char**)
                                 printf("Switched to USB Audio Manager.\n");
                             } else {
                                 printf("USB drive not available. Remaining in Bluetooth mode.\n");
-                                // Reinstantiate Bluetooth manager.
                                 audioManager = std::make_unique<BluetoothAudioManager>();
                                 currentAudioMode = BLUETOOTH_MODE;
                             }
@@ -193,11 +198,14 @@ int main(int, char**)
                         } else {
                             audioManager->Play();
                         }
-                        ePressCount = 0; // Reset counter after switching.
+                        // Reset the 'e' press counter and timestamp.
+                        ePressCount = 0;
+                        lastEPressTime = 0;
                     }
                 } else {
-                    // Any other key resets the e-press counter.
+                    // Any other key resets the 'e' press counter.
                     ePressCount = 0;
+                    lastEPressTime = 0;
                     switch (key) {
                         case SDLK_SPACE:
                             if (audioManager->GetState() == PlaybackState::Playing)
