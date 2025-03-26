@@ -76,7 +76,7 @@ USBAudioManager::USBAudioManager()
       state(PlaybackState::Stopped),
       volume(64),
       baseVolume(64),      // User-set volume (0 to MIX_MAX_VOLUME)
-      gainFactor(0.70f),    // Default gain factor (1.0 means no change)
+      gainFactor(0.60f),    // Default gain factor (1.0 means no change)
       playbackPosition(0.0f),
       currentMusic(nullptr)
 {
@@ -102,7 +102,12 @@ bool USBAudioManager::Initialize() {
         std::cerr << "SDL audio initialization failed: " << SDL_GetError() << "\n";
         return false;
     }
-    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
+    // Increased chunk size from 2048 to 4096 to help reduce crackling.
+    const int audioFrequency = 44100;
+    const int audioFormat = MIX_DEFAULT_FORMAT;
+    const int audioChannels = 2;
+    const int audioChunkSize = 4096;
+    if (Mix_OpenAudio(audioFrequency, audioFormat, audioChannels, audioChunkSize) < 0) {
         std::cerr << "SDL_mixer could not initialize! SDL_mixer Error: " << Mix_GetError() << "\n";
         return false;
     }
