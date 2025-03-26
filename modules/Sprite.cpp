@@ -38,44 +38,44 @@ void Sprite::UpdatePosition(float progress_fraction,
 
 void Sprite::Draw(ImDrawList* draw_list, ImU32 color)
 {
-    // A simple "car" pattern (19×9 pixels)
-    const int SPRITE_WIDTH = 19;
-    const int SPRITE_HEIGHT = 9;
-    
-    // Use a smaller pixel size so the sprite isn’t too large.
-    // Here, pixel_size is scaled relative to the sprite's overall size.
-    float pixel_size = 0.08f * size.x;
-
-    // -- First Pass: Draw a background rectangle for the border and fill.
-    // Extend by 1 pixel (i.e. pixel_size) on all sides.
-    ImVec2 bg_top_left = ImVec2(position.x - pixel_size, position.y - pixel_size);
-    ImVec2 bg_bot_right = ImVec2(position.x + SPRITE_WIDTH * pixel_size + pixel_size,
-                                 position.y + SPRITE_HEIGHT * pixel_size + pixel_size);
-    draw_list->AddRectFilled(bg_top_left, bg_bot_right, IM_COL32(0, 0, 0, 255));
-
-    // -- Second Pass: Draw the car sprite pattern, offset by 1 pixel to leave the black border.
+    // Updated sprite pattern: 21 columns x 11 rows.
+    const int SPRITE_WIDTH = 21;
+    const int SPRITE_HEIGHT = 11;
     const int sprite_pattern[SPRITE_HEIGHT][SPRITE_WIDTH] = {
-        {0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0},
-        {0,1,0,0,0,0,0,1,1,0,0,1,0,0,0,0,0,0,0},
-        {1,0,0,0,0,0,0,1,1,0,0,0,1,0,0,0,0,0,0},
-        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0},
-        {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
-        {1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,0,0,0,1},
-        {0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0},
-        {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+        {0,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0,0,0,0,0,0},
+        {0,2,1,1,1,1,1,1,1,1,1,1,2,0,0,0,0,0,0,0,0},
+        {2,2,1,2,2,2,2,2,1,1,2,2,1,2,0,0,0,0,0,0,0},
+        {2,1,2,2,2,2,2,2,1,1,2,2,2,1,2,2,2,2,2,2,0},
+        {2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2},
+        {2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,2},
+        {2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2},
+        {2,1,1,1,2,2,2,1,1,1,1,1,1,1,1,1,2,2,2,1,2},
+        {2,2,2,2,2,1,2,2,2,2,2,2,2,2,2,2,2,1,2,2,2},
+        {0,0,0,0,2,2,2,0,0,0,0,0,0,0,0,0,2,2,2,0,0},
+        {0,0,0,0,2,2,2,0,0,0,0,0,0,0,0,0,2,2,2,0,0},
     };
 
-    // Offset to leave the border (1 pixel).
-    float offset = pixel_size;
+    // Pixel size scaled relative to the sprite's overall size.
+    float pixel_size = 0.08f * size.x;
+    const ImU32 black_color = IM_COL32(0, 0, 0, 255); // Black for pixels marked as 2
+
     for (int y = 0; y < SPRITE_HEIGHT; ++y) {
         for (int x = 0; x < SPRITE_WIDTH; ++x) {
-            if (sprite_pattern[y][x]) {
-                ImVec2 top_left = ImVec2(position.x + offset + x * pixel_size,
-                                         position.y + offset + y * pixel_size);
-                ImVec2 bot_right = ImVec2(top_left.x + pixel_size,
-                                          top_left.y + pixel_size);
+            int pixel = sprite_pattern[y][x];
+            if (pixel == 0) {
+                continue; // Do not draw for 0 (transparent)
+            }
+            ImVec2 top_left = ImVec2(position.x + x * pixel_size,
+                                     position.y + y * pixel_size);
+            ImVec2 bot_right = ImVec2(top_left.x + pixel_size,
+                                      top_left.y + pixel_size);
+
+            // Draw using the appropriate color based on the pixel value.
+            if (pixel == 1) {
                 draw_list->AddRectFilled(top_left, bot_right, color);
+            }
+            else if (pixel == 2) {
+                draw_list->AddRectFilled(top_left, bot_right, black_color);
             }
         }
     }
