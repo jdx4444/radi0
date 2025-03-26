@@ -94,6 +94,9 @@ bool USBAudioManager::Initialize() {
     // Wait a short time to allow the USB drive to settle.
     SDL_Delay(1000);  // delay for 1 second
 
+    // Clear any previously scanned playlist.
+    playlist.clear();
+
     if (SDL_Init(SDL_INIT_AUDIO) < 0) {
         std::cerr << "SDL audio initialization failed: " << SDL_GetError() << "\n";
         return false;
