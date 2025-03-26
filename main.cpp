@@ -29,7 +29,7 @@ bool directoryExists(const char *path) {
 enum AudioMode { USB_MODE, BLUETOOTH_MODE };
 static AudioMode currentAudioMode;
 
-// Define a virtual coordinate system (80×25).
+// Define a virtual coordinate system (80x25).
 static const float VIRTUAL_WIDTH = 80.0f;
 static const float VIRTUAL_HEIGHT = 25.0f;
 
@@ -144,9 +144,6 @@ int main(int, char**)
     ui.Initialize();
 
     bool done = false;
-    int ePressCount = 0;         // Counter for consecutive 'e' presses.
-    Uint32 lastEPressTime = 0;   // Timestamp of the last 'e' key press (in ms).
-
     while (!done)
     {
         SDL_Event event;
@@ -160,76 +157,60 @@ int main(int, char**)
             if (event.type == SDL_KEYDOWN)
             {
                 SDL_Keycode key = event.key.keysym.sym;
-                Uint32 currentTime = SDL_GetTicks();
-                if (key == SDLK_x) {
-                    // 'x' key exits the program.
-                    done = true;
-                }
-                else if (key == SDLK_e) {
-                    // Check if more than 5 seconds have passed since the last 'e' press.
-                    if (currentTime - lastEPressTime > 5000) {
-                        ePressCount = 0;
-                    }
-                    ePressCount++;
-                    lastEPressTime = currentTime;  // Update timestamp for the latest 'e'
-                    if (ePressCount >= 4) {
-                        // Switch audio mode.
-                        audioManager->Shutdown();
+                switch (key) {
+                    case SDLK_x:
+                        // 'x' exits the program.
+                        done = true;
+                        break;
+                    case SDLK_e:
+                        // Single press of 'e' toggles audio mode.
                         if (currentAudioMode == USB_MODE) {
-                            // Switch to Bluetooth mode.
-                            audioManager = std::make_unique<BluetoothAudioManager>();
-                            currentAudioMode = BLUETOOTH_MODE;
-                            printf("Switched to Bluetooth Audio Manager.\n");
-                        } else {
-                            // Switch to USB mode if available.
+                            // Attempt to switch to Bluetooth mode.
+                            auto tempBt = std::make_unique<BluetoothAudioManager>();
+                            if (!tempBt->Initialize() || !tempBt->IsPaired()) {
+                                printf("No paired phone found. Remaining in USB mode.\n");
+                            } else {
+                                audioManager->Shutdown();
+                                audioManager = std::move(tempBt);
+                                currentAudioMode = BLUETOOTH_MODE;
+                                printf("Switched to Bluetooth Audio Manager.\n");
+                                audioManager->Play();
+                            }
+                        } else { // currentAudioMode == BLUETOOTH_MODE
+                            // Switch to USB mode if USB drive is available.
                             if (directoryExists("/media/jdx4444/Mustick")) {
+                                audioManager->Shutdown();
                                 audioManager = std::make_unique<USBAudioManager>();
                                 currentAudioMode = USB_MODE;
                                 printf("Switched to USB Audio Manager.\n");
+                                audioManager->Play();
                             } else {
                                 printf("USB drive not available. Remaining in Bluetooth mode.\n");
-                                audioManager = std::make_unique<BluetoothAudioManager>();
-                                currentAudioMode = BLUETOOTH_MODE;
                             }
                         }
-                        if (!audioManager->Initialize()) {
-                            printf("Failed to initialize audio manager after switching.\n");
-                            done = true;
-                        } else {
+                        break;
+                    case SDLK_SPACE:
+                        if (audioManager->GetState() == PlaybackState::Playing)
+                            audioManager->Pause();
+                        else if (audioManager->GetState() == PlaybackState::Paused)
+                            audioManager->Resume();
+                        else
                             audioManager->Play();
-                        }
-                        // Reset the 'e' press counter and timestamp.
-                        ePressCount = 0;
-                        lastEPressTime = 0;
-                    }
-                } else {
-                    // Any other key resets the 'e' press counter.
-                    ePressCount = 0;
-                    lastEPressTime = 0;
-                    switch (key) {
-                        case SDLK_SPACE:
-                            if (audioManager->GetState() == PlaybackState::Playing)
-                                audioManager->Pause();
-                            else if (audioManager->GetState() == PlaybackState::Paused)
-                                audioManager->Resume();
-                            else
-                                audioManager->Play();
-                            break;
-                        case SDLK_RIGHT:
-                            audioManager->NextTrack();
-                            break;
-                        case SDLK_LEFT:
-                            audioManager->PreviousTrack();
-                            break;
-                        case SDLK_UP:
-                            audioManager->SetVolume(audioManager->GetVolume() + 8);
-                            break;
-                        case SDLK_DOWN:
-                            audioManager->SetVolume(audioManager->GetVolume() - 8);
-                            break;
-                        default:
-                            break;
-                    }
+                        break;
+                    case SDLK_RIGHT:
+                        audioManager->NextTrack();
+                        break;
+                    case SDLK_LEFT:
+                        audioManager->PreviousTrack();
+                        break;
+                    case SDLK_UP:
+                        audioManager->SetVolume(audioManager->GetVolume() + 8);
+                        break;
+                    case SDLK_DOWN:
+                        audioManager->SetVolume(audioManager->GetVolume() - 8);
+                        break;
+                    default:
+                        break;
                 }
             }
         }
