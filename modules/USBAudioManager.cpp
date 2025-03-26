@@ -91,6 +91,9 @@ bool USBAudioManager::Initialize() {
         std::cerr << "USB drive not found at " << USB_MOUNT_PATH << "\n";
         return false;
     }
+    // Wait a short time to allow the USB drive to settle.
+    SDL_Delay(1000);  // delay for 1 second
+
     if (SDL_Init(SDL_INIT_AUDIO) < 0) {
         std::cerr << "SDL audio initialization failed: " << SDL_GetError() << "\n";
         return false;
