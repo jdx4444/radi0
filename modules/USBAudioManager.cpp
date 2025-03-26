@@ -76,7 +76,7 @@ USBAudioManager::USBAudioManager()
       state(PlaybackState::Stopped),
       volume(64),
       baseVolume(64),      // User-set volume (0 to MIX_MAX_VOLUME)
-      gainFactor(0.60f),    // Default gain factor (1.0 means no change)
+      gainFactor(0.40f),    // Default gain factor (1.0 means no change)
       playbackPosition(0.0f),
       currentMusic(nullptr)
 {
