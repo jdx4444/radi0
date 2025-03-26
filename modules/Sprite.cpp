@@ -41,6 +41,19 @@ void Sprite::Draw(ImDrawList* draw_list, ImU32 color)
     // A simple "car" pattern (19×9 pixels)
     const int SPRITE_WIDTH = 19;
     const int SPRITE_HEIGHT = 9;
+    
+    // Use a smaller pixel size so the sprite isn’t too large.
+    // Here, pixel_size is scaled relative to the sprite's overall size.
+    float pixel_size = 0.08f * size.x;
+
+    // -- First Pass: Draw a background rectangle for the border and fill.
+    // Extend by 1 pixel (i.e. pixel_size) on all sides.
+    ImVec2 bg_top_left = ImVec2(position.x - pixel_size, position.y - pixel_size);
+    ImVec2 bg_bot_right = ImVec2(position.x + SPRITE_WIDTH * pixel_size + pixel_size,
+                                 position.y + SPRITE_HEIGHT * pixel_size + pixel_size);
+    draw_list->AddRectFilled(bg_top_left, bg_bot_right, IM_COL32(0, 0, 0, 255));
+
+    // -- Second Pass: Draw the car sprite pattern, offset by 1 pixel to leave the black border.
     const int sprite_pattern[SPRITE_HEIGHT][SPRITE_WIDTH] = {
         {0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0},
         {0,1,0,0,0,0,0,1,1,0,0,1,0,0,0,0,0,0,0},
@@ -53,14 +66,13 @@ void Sprite::Draw(ImDrawList* draw_list, ImU32 color)
         {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
     };
 
-    // Use a smaller pixel size so the sprite isn’t too large.
-    // Here, pixel_size is scaled relative to the sprite's overall size.
-    float pixel_size = 0.08f * size.x;
+    // Offset to leave the border (1 pixel).
+    float offset = pixel_size;
     for (int y = 0; y < SPRITE_HEIGHT; ++y) {
         for (int x = 0; x < SPRITE_WIDTH; ++x) {
             if (sprite_pattern[y][x]) {
-                ImVec2 top_left = ImVec2(position.x + x * pixel_size,
-                                         position.y + y * pixel_size);
+                ImVec2 top_left = ImVec2(position.x + offset + x * pixel_size,
+                                         position.y + offset + y * pixel_size);
                 ImVec2 bot_right = ImVec2(top_left.x + pixel_size,
                                           top_left.y + pixel_size);
                 draw_list->AddRectFilled(top_left, bot_right, color);
