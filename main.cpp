@@ -2,6 +2,7 @@
 #include <SDL.h>
 #include <sys/stat.h>
 #include <memory>
+#include <atomic>
 #ifdef __APPLE__
 #include <OpenGL/gl3.h>
 #else
@@ -32,6 +33,9 @@ static AudioMode currentAudioMode;
 // Define a virtual coordinate system (80x25).
 static const float VIRTUAL_WIDTH = 80.0f;
 static const float VIRTUAL_HEIGHT = 25.0f;
+
+// Global atomic flag to prevent overlapping mode switches.
+std::atomic<bool> switchInProgress(false);
 
 int main(int, char**)
 {
@@ -118,11 +122,11 @@ int main(int, char**)
     ImGui_ImplOpenGL3_Init(glsl_version);
 
     // Determine initial audio mode.
-    if (directoryExists("/media/jdx4444/Mustick")) {
+    if (directoryExists("/media/jdx4444/Mustick"))
          currentAudioMode = USB_MODE;
-    } else {
+    else
          currentAudioMode = BLUETOOTH_MODE;
-    }
+
     std::unique_ptr<IAudioManager> audioManager;
     if (currentAudioMode == USB_MODE) {
          audioManager = std::make_unique<USBAudioManager>();
@@ -157,13 +161,18 @@ int main(int, char**)
             if (event.type == SDL_KEYDOWN)
             {
                 SDL_Keycode key = event.key.keysym.sym;
+                // Ignore key events if a switch is already in progress.
+                if (switchInProgress.load()) {
+                    continue;
+                }
                 switch (key) {
                     case SDLK_x:
                         // 'x' exits the program.
                         done = true;
                         break;
                     case SDLK_e:
-                        // Single press of 'e' toggles audio mode.
+                        // Toggle audio mode.
+                        switchInProgress.store(true);
                         if (currentAudioMode == USB_MODE) {
                             // Attempt to switch to Bluetooth mode.
                             auto tempBt = std::make_unique<BluetoothAudioManager>();
@@ -171,8 +180,6 @@ int main(int, char**)
                                 printf("No paired phone found. Remaining in USB mode.\n");
                             } else {
                                 audioManager->Shutdown();
-                                // Optionally, delay a bit to let the audio subsystem settle.
-                                SDL_Delay(500);
                                 audioManager = std::move(tempBt);
                                 currentAudioMode = BLUETOOTH_MODE;
                                 printf("Switched to Bluetooth Audio Manager.\n");
@@ -182,9 +189,7 @@ int main(int, char**)
                             // Switch to USB mode if USB drive is available.
                             if (directoryExists("/media/jdx4444/Mustick")) {
                                 audioManager->Shutdown();
-                                // Explicitly shut down the audio subsystem.
-                                SDL_QuitSubSystem(SDL_INIT_AUDIO);
-                                // Wait a bit to ensure the drive is ready and the subsystem resets.
+                                // Delay briefly to allow the USB drive to become available.
                                 SDL_Delay(1500);
                                 audioManager = std::make_unique<USBAudioManager>();
                                 currentAudioMode = USB_MODE;
@@ -198,6 +203,7 @@ int main(int, char**)
                                 printf("USB drive not available. Remaining in Bluetooth mode.\n");
                             }
                         }
+                        switchInProgress.store(false);
                         break;
                     case SDLK_SPACE:
                         if (audioManager->GetState() == PlaybackState::Playing)
