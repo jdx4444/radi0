@@ -7,6 +7,7 @@
 #include <cstring>
 #include <thread>
 #include <chrono>
+#include <cstdio>  // Added for popen and pclose
 
 // Helper method to call a DBus method.
 static DBusMessage* CallMethod(DBusConnection* conn, const char* destination, const char* path,
@@ -26,6 +27,33 @@ static DBusMessage* CallMethod(DBusConnection* conn, const char* destination, co
         return nullptr;
     }
     return reply;
+}
+
+// NEW: Helper function to get the default sink name dynamically.
+static std::string GetDefaultSink() {
+    std::string defaultSink;
+    FILE* pipe = popen("pactl info", "r");
+    if (!pipe) {
+        std::cerr << "DEBUG: Failed to run 'pactl info' command.\n";
+        return "";
+    }
+    char buffer[128];
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        std::string line(buffer);
+        // Look for the line that starts with "Default Sink:"
+        if (line.find("Default Sink:") != std::string::npos) {
+            auto pos = line.find(":");
+            if (pos != std::string::npos) {
+                defaultSink = line.substr(pos + 1);
+                // Trim whitespace and newlines.
+                defaultSink.erase(0, defaultSink.find_first_not_of(" \n\r\t"));
+                defaultSink.erase(defaultSink.find_last_not_of(" \n\r\t") + 1);
+            }
+            break;
+        }
+    }
+    pclose(pipe);
+    return defaultSink;
 }
 
 // -----------------------------------------------------------------------------
@@ -742,10 +770,17 @@ std::string BluetoothAudioManager::QueryMediaPlayerStatus() {
     return status;
 }
 
+// -----------------------------------------------------------------------------
+// Volume Update: Now uses dynamic default sink detection for PipeWire.
+// -----------------------------------------------------------------------------
 void BluetoothAudioManager::SendVolumeUpdate(int vol) {
     int percentage = (vol * 100) / 128;
-    std::string command = "pactl set-sink-volume alsa_output.platform-bcm2835_audio.analog-stereo " 
-                          + std::to_string(percentage) + "%";
+    std::string sink = GetDefaultSink();
+    if (sink.empty()) {
+        std::cerr << "DEBUG: Could not determine default sink.\n";
+        return;
+    }
+    std::string command = "pactl set-sink-volume " + sink + " " + std::to_string(percentage) + "%";
     std::thread([command](){
         std::system(command.c_str());
     }).detach();
