@@ -14,16 +14,17 @@ void ExhaustEffect::Trigger(const ImVec2& position) {
     
     float centralAngle = 180.0f * 3.1415926f / 180.0f; // leftward
     float spread = 20.0f * 3.1415926f / 180.0f;         // 20° spread
-    
+
     particles.clear();  // Start fresh.
     for (int i = 0; i < numParticles; ++i) {
         Particle p;
-        // Start exactly at the given position, then add a small random offset:
+        // Spawn all particles exactly from the given position.
         p.position = position;
-        p.position.x += ((std::rand() % 11) - 5) / 10.0f; // ±0.5 pixels offset
-        p.position.y += ((std::rand() % 11) - 5) / 10.0f; // ±0.5 pixels offset
+        // Optional: Add a tiny random offset if desired (currently commented out).
+        // p.position.x += ((std::rand() % 11) - 5) / 10.0f;
+        // p.position.y += ((std::rand() % 11) - 5) / 10.0f;
         
-        // Evenly fan out particles.
+        // Evenly fan out particles over the spread range.
         float t = (numParticles > 1) ? static_cast<float>(i) / (numParticles - 1) : 0.5f;
         float angle = centralAngle + (t - 0.5f) * spread;
         
@@ -59,10 +60,10 @@ void ExhaustEffect::Update(float deltaTime) {
 void ExhaustEffect::Draw(ImDrawList* draw_list) {
     for (const auto& p : particles) {
         float alpha = p.lifetime / p.initialLifetime;
-        // Use the same UI green color (109,254,149) with alpha modulation.
+        // Use the UI green color (109,254,149) with alpha modulation.
         ImU32 color = IM_COL32(109, 254, 149, static_cast<int>(alpha * 255));
-        // Draw a single pixel square.
+        // Draw a 2x2 pixel square.
         ImVec2 pos = p.position;
-        draw_list->AddRectFilled(pos, ImVec2(pos.x + 1.0f, pos.y + 1.0f), color);
+        draw_list->AddRectFilled(pos, ImVec2(pos.x + 2.0f, pos.y + 2.0f), color);
     }
 }
