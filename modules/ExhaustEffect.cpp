@@ -2,36 +2,46 @@
 #include <cmath>
 #include <cstdlib>
 #include <algorithm>
-#include <iostream>  // For debugging output
+#include <iostream>
 
 ExhaustEffect::ExhaustEffect() {}
 
 void ExhaustEffect::Trigger(const ImVec2& position) {
-    const int numParticles = 20;
+    const int numParticles = 8; // Number of particles in the shot.
     std::cout << "DEBUG: ExhaustEffect::Trigger - Emitting " 
               << numParticles << " particles at position (" 
               << position.x << ", " << position.y << ")." << std::endl;
+    
+    // Central angle is 180 degrees (leftward) in radians.
+    float centralAngle = 180.0f * 3.1415926f / 180.0f;
+    // Spread range in radians (e.g., total spread of 20°)
+    float spread = 20.0f * 3.1415926f / 180.0f;
+    
+    particles.clear();  // Ensure we start fresh.
     for (int i = 0; i < numParticles; ++i) {
         Particle p;
         p.position = position;
-        // Randomize a direction (0 to 360 degrees) and speed.
-        float angle = (std::rand() % 360) * 3.1415926f / 180.0f;
-        float speed = 10.0f + std::rand() % 20; // speed between 10 and 30 pixels per second
+        // Evenly fan out particles over the spread range.
+        float t = (numParticles > 1) ? static_cast<float>(i) / (numParticles - 1) : 0.5f;
+        float angle = centralAngle + (t - 0.5f) * spread;
+        
+        // Use a slightly reduced speed for a subtle effect.
+        float speed = 5.0f + (std::rand() % 6); // 5 to 10 pixels per second.
         p.velocity = ImVec2(std::cos(angle) * speed, std::sin(angle) * speed);
-        // Temporarily increase particle lifetime: between 2.0 and 2.5 seconds.
-        p.initialLifetime = p.lifetime = 2.0f + (std::rand() % 50) / 100.0f;
+        
+        // Shortened lifetime: between 0.5 and 0.7 seconds.
+        p.initialLifetime = p.lifetime = 0.5f + (std::rand() % 21) / 100.0f;
+        
         particles.push_back(p);
     }
 }
 
 void ExhaustEffect::Update(float deltaTime) {
-    // Update each particle’s position and lifetime.
     for (auto& p : particles) {
         p.position.x += p.velocity.x * deltaTime;
         p.position.y += p.velocity.y * deltaTime;
         p.lifetime -= deltaTime;
     }
-    // Remove expired particles.
     size_t before = particles.size();
     particles.erase(std::remove_if(particles.begin(), particles.end(),
         [](const Particle& p) { return p.lifetime <= 0.0f; }),
@@ -45,12 +55,12 @@ void ExhaustEffect::Update(float deltaTime) {
 }
 
 void ExhaustEffect::Draw(ImDrawList* draw_list) {
-    // Draw each particle using the same green as your UI elements.
     for (const auto& p : particles) {
         float alpha = p.lifetime / p.initialLifetime;
-        // Use the UI green: (109, 254, 149), with alpha modulation.
+        // Use the same UI green color (109,254,149) with alpha modulation.
         ImU32 color = IM_COL32(109, 254, 149, static_cast<int>(alpha * 255));
-        float radius = 2.0f; // 2 pixels radius
-        draw_list->AddCircleFilled(p.position, radius, color, 8);
+        // Draw a single pixel square.
+        ImVec2 pos = p.position;
+        draw_list->AddRectFilled(pos, ImVec2(pos.x + 1.0f, pos.y + 1.0f), color);
     }
 }
