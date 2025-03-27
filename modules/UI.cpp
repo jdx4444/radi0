@@ -50,7 +50,7 @@ void UI::Render(ImDrawList* draw_list,
     // 4) Draw the artist and track info on top.
     DrawArtistAndTrackInfo(draw_list, audioManager, scale, offset_x, offset_y);
     
-    // Note: Borders and status box will be drawn in the overlay.
+    // Note: Borders are now drawn separately via DrawBorders() in the overlay.
 }
 
 void UI::Cleanup()
@@ -250,39 +250,4 @@ void UI::DrawBorders(ImDrawList* draw_list, int window_width, int window_height)
     ImVec2 innerBorderBottomRight(borderBottomRight.x - innerPadX, borderBottomRight.y - innerPadY);
     
     draw_list->AddRect(innerBorderTopLeft, innerBorderBottomRight, COLOR_GREEN, 0.0f, 0, 1.0f);
-}
-
-// NEW: DrawStatusBox draws a tiny black box with a green border
-void UI::DrawStatusBox(ImDrawList* draw_list, int window_width, int window_height, float scale)
-{
-    // Compute outer border as in DrawBorders.
-    float padX = std::round(layout.borderPadding * (window_width / 80.0f));
-    float padY = std::round((layout.borderPadding - 1.0f) * (window_height / 25.0f));
-    ImVec2 borderTopLeft(padX, padY);
-    ImVec2 borderBottomRight(window_width - padX, window_height - padY);
-    
-    // Compute inner border coordinates.
-    float innerPadX = std::round(layout.borderPadding * (window_width / 80.0f));
-    float innerPadY = std::round(layout.borderPadding * (window_height / 25.0f));
-    ImVec2 innerBorderTopLeft(borderTopLeft.x + innerPadX, borderTopLeft.y + innerPadY);
-    ImVec2 innerBorderBottomRight(borderBottomRight.x - innerPadX, borderBottomRight.y - innerPadY);
-    
-    // Compute the horizontal center of the inner border.
-    float centerX = (innerBorderTopLeft.x + innerBorderBottomRight.x) / 2.0f;
-    
-    // Define new box dimensions: width = 3.0 virtual units, height = 1.0 virtual unit.
-    float boxWidth = 3.0f * scale;
-    float boxHeight = 1.0f * scale;
-    
-    // Position the box so that its vertical center cuts the inner border's top edge in half.
-    float boxX = centerX - boxWidth / 2.0f;
-    float boxY = innerBorderTopLeft.y - boxHeight / 2.0f;
-    
-    ImVec2 boxMin(boxX, boxY);
-    ImVec2 boxMax(boxX + boxWidth, boxY + boxHeight);
-    
-    // Draw the filled black box.
-    draw_list->AddRectFilled(boxMin, boxMax, COLOR_BLACK);
-    // Draw the green border around the box.
-    draw_list->AddRect(boxMin, boxMax, COLOR_GREEN, 0.0f, 0, 1.0f);
 }

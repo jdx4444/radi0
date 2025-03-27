@@ -75,12 +75,9 @@ public:
 
     LayoutConfig& GetLayoutConfig() { return layout; }
 
-    // Make DrawMaskBars and DrawBorders public.
+    // Public methods for drawing mask bars and borders.
     void DrawMaskBars(ImDrawList* draw_list, float scale, float offset_x, float offset_y);
     void DrawBorders(ImDrawList* draw_list, int window_width, int window_height);
-
-    // NEW: DrawStatusBox draws a small black box (with a green border) centered horizontally at the inner border's top.
-    void DrawStatusBox(ImDrawList* draw_list, int window_width, int window_height, float scale);
 
 private:
     void DrawArtistAndTrackInfo(ImDrawList* draw_list,
