@@ -165,20 +165,16 @@ int main(int, char**)
             if (event.type == SDL_KEYDOWN)
             {
                 SDL_Keycode key = event.key.keysym.sym;
-                // Ignore key events if a switch is already in progress.
                 if (switchInProgress.load()) {
                     continue;
                 }
                 switch (key) {
                     case SDLK_x:
-                        // 'x' exits the program.
                         done = true;
                         break;
                     case SDLK_e:
-                        // Toggle audio mode.
                         switchInProgress.store(true);
                         if (currentAudioMode == USB_MODE) {
-                            // Attempt to switch to Bluetooth mode.
                             auto tempBt = std::make_unique<BluetoothAudioManager>();
                             if (!tempBt->Initialize() || !tempBt->IsPaired()) {
                                 printf("No paired phone found. Remaining in USB mode.\n");
@@ -189,7 +185,7 @@ int main(int, char**)
                                 printf("Switched to Bluetooth Audio Manager.\n");
                                 audioManager->Play();
                             }
-                        } else { // currentAudioMode == BLUETOOTH_MODE
+                        } else {
                             if (directoryExists("/media/jdx4444/Mustick")) {
                                 audioManager->Shutdown();
                                 SDL_Delay(1500);
@@ -242,7 +238,7 @@ int main(int, char**)
 
         audioManager->Update(io.DeltaTime);
 
-        // Draw your main UI window.
+        // Draw main UI window.
         ImGuiWindowFlags wf = ImGuiWindowFlags_NoResize |
                               ImGuiWindowFlags_NoMove |
                               ImGuiWindowFlags_NoTitleBar |
@@ -251,14 +247,16 @@ int main(int, char**)
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(ImVec2(static_cast<float>(window_width), static_cast<float>(window_height)));
         ImGui::Begin("Car Head Unit", nullptr, wf);
-        ImDrawList* draw_list = ImGui::GetWindowDrawList();
-        ui.Render(draw_list, *audioManager, sprite, scale, offset_x, offset_y, window_width, window_height);
+        {
+            ImDrawList* draw_list = ImGui::GetWindowDrawList();
+            ui.Render(draw_list, *audioManager, sprite, scale, offset_x, offset_y, window_width, window_height);
+        }
         ImGui::End();
 
-        // Create an overlay window to draw the exhaust effect.
+        // Draw overlay window for exhaust effect and mask bars.
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(ImVec2(static_cast<float>(window_width), static_cast<float>(window_height)));
-        ImGui::Begin("Exhaust Overlay", nullptr,
+        ImGui::Begin("Exhaust & Mask Overlay", nullptr,
                      ImGuiWindowFlags_NoTitleBar |
                      ImGuiWindowFlags_NoResize |
                      ImGuiWindowFlags_NoMove |
@@ -269,6 +267,8 @@ int main(int, char**)
             exhaustEffect.Update(io.DeltaTime);
             ImDrawList* overlay_draw_list = ImGui::GetWindowDrawList();
             exhaustEffect.Draw(overlay_draw_list);
+            // Draw mask bars on top of the exhaust effect.
+            ui.DrawMaskBars(overlay_draw_list, scale, offset_x, offset_y);
         }
         ImGui::End();
 

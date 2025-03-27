@@ -76,6 +76,12 @@ public:
 
     LayoutConfig& GetLayoutConfig() { return layout; }
 
+    // Moved to public so main.cpp can call it.
+    void DrawMaskBars(ImDrawList* draw_list,
+                      float scale,
+                      float offset_x,
+                      float offset_y);
+
 private:
     void DrawArtistAndTrackInfo(ImDrawList* draw_list,
                                 IAudioManager& audioManager,
@@ -88,11 +94,6 @@ private:
                           float scale,
                           float offset_x,
                           float offset_y);
-
-    void DrawMaskBars(ImDrawList* draw_list,
-                      float scale,
-                      float offset_x,
-                      float offset_y);
 
     // Volume Indicator drawing.
     void DrawVolumeSun(ImDrawList* draw_list,
