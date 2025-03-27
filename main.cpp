@@ -238,12 +238,13 @@ int main(int, char**)
 
         audioManager->Update(io.DeltaTime);
 
-        // Draw main UI window.
+        // Draw main UI window without borders.
         ImGuiWindowFlags wf = ImGuiWindowFlags_NoResize |
                               ImGuiWindowFlags_NoMove |
                               ImGuiWindowFlags_NoTitleBar |
                               ImGuiWindowFlags_NoScrollbar |
                               ImGuiWindowFlags_NoScrollWithMouse;
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f); // Remove default border
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(ImVec2(static_cast<float>(window_width), static_cast<float>(window_height)));
         ImGui::Begin("Car Head Unit", nullptr, wf);
@@ -252,6 +253,7 @@ int main(int, char**)
             ui.Render(draw_list, *audioManager, sprite, scale, offset_x, offset_y, window_width, window_height);
         }
         ImGui::End();
+        ImGui::PopStyleVar();
 
         // Draw overlay window for exhaust effect, mask bars, and borders.
         ImGui::SetNextWindowPos(ImVec2(0, 0));
@@ -267,9 +269,7 @@ int main(int, char**)
             exhaustEffect.Update(io.DeltaTime);
             ImDrawList* overlay_draw_list = ImGui::GetWindowDrawList();
             exhaustEffect.Draw(overlay_draw_list);
-            // Draw mask bars.
             ui.DrawMaskBars(overlay_draw_list, scale, offset_x, offset_y);
-            // Draw borders on top.
             ui.DrawBorders(overlay_draw_list, window_width, window_height);
         }
         ImGui::End();
