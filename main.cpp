@@ -18,6 +18,7 @@
 #include "USBAudioManager.h"
 #include "modules/Sprite.h"
 #include "modules/UI.h"
+#include "ExhaustEffect.h"    // NEW: Include our exhaust effect header
 #include <algorithm>
 
 // Utility function to check if a directory exists.
@@ -147,6 +148,9 @@ int main(int, char**)
     UI ui;
     ui.Initialize();
 
+    // Create our exhaust effect instance.
+    ExhaustEffect exhaustEffect;
+
     bool done = false;
     while (!done)
     {
@@ -208,8 +212,11 @@ int main(int, char**)
                     case SDLK_SPACE:
                         if (audioManager->GetState() == PlaybackState::Playing)
                             audioManager->Pause();
-                        else if (audioManager->GetState() == PlaybackState::Paused)
+                        else if (audioManager->GetState() == PlaybackState::Paused) {
                             audioManager->Resume();
+                            // When resuming, trigger exhaust puff using sprite’s exhaust position.
+                            exhaustEffect.Trigger(sprite.GetExhaustPosition());
+                        }
                         else
                             audioManager->Play();
                         break;
@@ -248,6 +255,11 @@ int main(int, char**)
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
         ui.Render(draw_list, *audioManager, sprite, scale, offset_x, offset_y, window_width, window_height);
         ImGui::End();
+
+        // Update and draw the exhaust effect on the background draw list.
+        exhaustEffect.Update(io.DeltaTime);
+        ImDrawList* bg_draw_list = ImGui::GetBackgroundDrawList();
+        exhaustEffect.Draw(bg_draw_list);
 
         ImGui::Render();
         glViewport(0, 0, window_width, window_height);

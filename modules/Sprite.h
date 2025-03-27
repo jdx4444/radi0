@@ -18,6 +18,9 @@ public:
                         float sprite_x_offset, float sprite_y_offset,
                         float sprite_base_y);
     void Draw(ImDrawList* draw_list, ImU32 color);
+    
+    // New: Return the exhaust emission position (for example, from the rear of the car).
+    ImVec2 GetExhaustPosition() const;
 
 private:
     ImVec2 position;

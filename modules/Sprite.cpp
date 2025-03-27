@@ -22,14 +22,13 @@ void Sprite::UpdatePosition(float progress_fraction,
                             float sprite_x_offset, float sprite_y_offset,
                             float sprite_base_y)
 {
-    // Calculate the sprite's horizontal position based on a progress fraction along a line,
-    // where line_start_x and line_end_x are given in virtual coordinates.
+    // Calculate the sprite's horizontal position based on progress along a line
     float line_pixel_start = line_start_x * scale + offset_x;
     float line_pixel_end   = line_end_x   * scale + offset_x;
     float total_movement = (line_pixel_end - line_pixel_start);
     float new_x = line_pixel_start + total_movement * progress_fraction;
     
-    // Position the sprite vertically using sprite_base_y (in virtual units)
+    // Position vertically based on sprite_base_y.
     float new_y = sprite_base_y * scale + offset_y;
     new_x += sprite_x_offset * scale;
     new_y += sprite_y_offset * scale;
@@ -55,28 +54,30 @@ void Sprite::Draw(ImDrawList* draw_list, ImU32 color)
         {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
     };
 
-    // Pixel size scaled relative to the sprite's overall size.
     float pixel_size = 0.08f * size.x;
-    const ImU32 black_color = IM_COL32(0, 0, 0, 255); // Black for pixels marked as 2
+    const ImU32 black_color = IM_COL32(0, 0, 0, 255);
 
     for (int y = 0; y < SPRITE_HEIGHT; ++y) {
         for (int x = 0; x < SPRITE_WIDTH; ++x) {
             int pixel = sprite_pattern[y][x];
-            if (pixel == 0) {
-                continue; // Do not draw for 0 (transparent)
-            }
+            if (pixel == 0)
+                continue;
             ImVec2 top_left = ImVec2(position.x + x * pixel_size,
                                      position.y + y * pixel_size);
             ImVec2 bot_right = ImVec2(top_left.x + pixel_size,
                                       top_left.y + pixel_size);
 
-            // Draw using the appropriate color based on the pixel value.
-            if (pixel == 1) {
+            if (pixel == 1)
                 draw_list->AddRectFilled(top_left, bot_right, color);
-            }
-            else if (pixel == 2) {
-                draw_list->AddRectFilled(top_left, bot_right, black_color);
-            }
+            else if (pixel == 2)
+                draw_list->AddRectFilled(top_left, bot_right, IM_COL32(0, 0, 0, 255));
         }
     }
+}
+
+// New method: returns a position from which to emit exhaust smoke.
+// Here we assume the exhaust comes from a point a few pixels to the left and
+// vertically centered relative to the sprite.
+ImVec2 Sprite::GetExhaustPosition() const {
+    return ImVec2(position.x - 5.0f, position.y + size.y / 2.0f);
 }

@@ -8,6 +8,7 @@ SOURCES = main.cpp \
           modules/USBAudioManager.cpp \
           modules/Sprite.cpp \
           modules/UI.cpp \
+          modules/ExhaustEffect.cpp \
           imgui/imgui.cpp \
           imgui/imgui_draw.cpp \
           imgui/imgui_widgets.cpp \
