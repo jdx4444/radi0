@@ -75,9 +75,9 @@ void Sprite::Draw(ImDrawList* draw_list, ImU32 color)
     }
 }
 
-// New method: returns a position from which to emit exhaust smoke.
-// Here we assume the exhaust comes from a point a few pixels to the left and
-// vertically centered relative to the sprite.
+// NEW method: returns the exhaust emission position.
+// Adjusted to move the starting position closer to the car sprite.
+// Previously: return ImVec2(position.x - 5.0f, position.y + size.y / 2.0f);
 ImVec2 Sprite::GetExhaustPosition() const {
-    return ImVec2(position.x - 5.0f, position.y + size.y / 2.0f);
+    return ImVec2(position.x - 3.0f, position.y + size.y / 2.0f);
 }

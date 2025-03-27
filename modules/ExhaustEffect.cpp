@@ -28,11 +28,11 @@ void ExhaustEffect::Trigger(const ImVec2& position) {
         std::cout << "DEBUG: Particle " << i << " angle (deg): " << (angle * 180.0f / 3.1415926f) << std::endl;
         
         // Set speed: 5 to 10 pixels per second.
-        float speed = 5.0f + (std::rand() % 6);
+        float speed = 14.0f + (std::rand() % 6);
         p.velocity = ImVec2(std::cos(angle) * speed, std::sin(angle) * speed);
         
         // Short lifetime: between 0.5 and 0.7 seconds.
-        p.initialLifetime = p.lifetime = 0.5f + (std::rand() % 21) / 100.0f;
+        p.initialLifetime = p.lifetime = 1.5f + (std::rand() % 21) / 100.0f;
         
         particles.push_back(p);
     }
