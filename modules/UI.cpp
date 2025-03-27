@@ -252,10 +252,7 @@ void UI::DrawBorders(ImDrawList* draw_list, int window_width, int window_height)
     draw_list->AddRect(innerBorderTopLeft, innerBorderBottomRight, COLOR_GREEN, 0.0f, 0, 1.0f);
 }
 
-// NEW: DrawStatusBox draws a tiny black box with a green border,
-// about the same size as the car sprite (2×2 virtual units),
-// centered horizontally in the inner border and with its top edge
-// aligned to the top of the inner border.
+// NEW: DrawStatusBox draws a tiny black box with a green border
 void UI::DrawStatusBox(ImDrawList* draw_list, int window_width, int window_height, float scale)
 {
     // Compute outer border as in DrawBorders.
@@ -270,19 +267,19 @@ void UI::DrawStatusBox(ImDrawList* draw_list, int window_width, int window_heigh
     ImVec2 innerBorderTopLeft(borderTopLeft.x + innerPadX, borderTopLeft.y + innerPadY);
     ImVec2 innerBorderBottomRight(borderBottomRight.x - innerPadX, borderBottomRight.y - innerPadY);
     
-    // Compute horizontal center of inner border.
+    // Compute the horizontal center of the inner border.
     float centerX = (innerBorderTopLeft.x + innerBorderBottomRight.x) / 2.0f;
     
-    // Box size: 2.0 virtual units scaled.
-    float boxSize = 2.0f * scale;
+    // Define new box dimensions: width = 3.0 virtual units, height = 1.0 virtual unit.
+    float boxWidth = 3.0f * scale;
+    float boxHeight = 1.0f * scale;
     
-    // Place the box so that its top edge aligns with the inner border's top,
-    // and its horizontal center is at centerX.
-    float boxX = centerX - boxSize / 2.0f;
-    float boxY = innerBorderTopLeft.y;
+    // Position the box so that its vertical center cuts the inner border's top edge in half.
+    float boxX = centerX - boxWidth / 2.0f;
+    float boxY = innerBorderTopLeft.y - boxHeight / 2.0f;
     
     ImVec2 boxMin(boxX, boxY);
-    ImVec2 boxMax(boxX + boxSize, boxY + boxSize);
+    ImVec2 boxMax(boxX + boxWidth, boxY + boxHeight);
     
     // Draw the filled black box.
     draw_list->AddRectFilled(boxMin, boxMax, COLOR_BLACK);
