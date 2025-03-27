@@ -12,24 +12,26 @@ void ExhaustEffect::Trigger(const ImVec2& position) {
               << numParticles << " particles at position (" 
               << position.x << ", " << position.y << ")." << std::endl;
     
-    // Central angle is 180 degrees (leftward) in radians.
-    float centralAngle = 180.0f * 3.1415926f / 180.0f;
-    // Spread range in radians (e.g., total spread of 20°)
-    float spread = 20.0f * 3.1415926f / 180.0f;
+    float centralAngle = 180.0f * 3.1415926f / 180.0f; // leftward
+    float spread = 20.0f * 3.1415926f / 180.0f;         // 20° spread
     
-    particles.clear();  // Ensure we start fresh.
+    particles.clear();  // Start fresh.
     for (int i = 0; i < numParticles; ++i) {
         Particle p;
+        // Start exactly at the given position, then add a small random offset:
         p.position = position;
-        // Evenly fan out particles over the spread range.
+        p.position.x += ((std::rand() % 11) - 5) / 10.0f; // ±0.5 pixels offset
+        p.position.y += ((std::rand() % 11) - 5) / 10.0f; // ±0.5 pixels offset
+        
+        // Evenly fan out particles.
         float t = (numParticles > 1) ? static_cast<float>(i) / (numParticles - 1) : 0.5f;
         float angle = centralAngle + (t - 0.5f) * spread;
         
-        // Use a slightly reduced speed for a subtle effect.
-        float speed = 5.0f + (std::rand() % 6); // 5 to 10 pixels per second.
+        // Speed: 5 to 10 pixels per second.
+        float speed = 5.0f + (std::rand() % 6);
         p.velocity = ImVec2(std::cos(angle) * speed, std::sin(angle) * speed);
         
-        // Shortened lifetime: between 0.5 and 0.7 seconds.
+        // Lifetime: between 0.5 and 0.7 seconds.
         p.initialLifetime = p.lifetime = 0.5f + (std::rand() % 21) / 100.0f;
         
         particles.push_back(p);
