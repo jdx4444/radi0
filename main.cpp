@@ -255,22 +255,23 @@ int main(int, char**)
         ImGui::End();
         ImGui::PopStyleVar();
 
-        // Draw overlay window for exhaust effect, mask bars, and borders.
+        // Draw overlay window for exhaust effect, mask bars, borders, and status box.
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(ImVec2(static_cast<float>(window_width), static_cast<float>(window_height)));
         ImGui::Begin("Exhaust & Mask Overlay", nullptr,
-                     ImGuiWindowFlags_NoTitleBar |
-                     ImGuiWindowFlags_NoResize |
-                     ImGuiWindowFlags_NoMove |
-                     ImGuiWindowFlags_NoScrollbar |
-                     ImGuiWindowFlags_NoInputs |
-                     ImGuiWindowFlags_NoBackground);
+                    ImGuiWindowFlags_NoTitleBar |
+                    ImGuiWindowFlags_NoResize |
+                    ImGuiWindowFlags_NoMove |
+                    ImGuiWindowFlags_NoScrollbar |
+                    ImGuiWindowFlags_NoInputs |
+                    ImGuiWindowFlags_NoBackground);
         {
             exhaustEffect.Update(io.DeltaTime);
             ImDrawList* overlay_draw_list = ImGui::GetWindowDrawList();
             exhaustEffect.Draw(overlay_draw_list);
             ui.DrawMaskBars(overlay_draw_list, scale, offset_x, offset_y);
             ui.DrawBorders(overlay_draw_list, window_width, window_height);
+            ui.DrawStatusBox(overlay_draw_list, window_width, window_height, scale);
         }
         ImGui::End();
 

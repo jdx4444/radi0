@@ -50,7 +50,7 @@ void UI::Render(ImDrawList* draw_list,
     // 4) Draw the artist and track info on top.
     DrawArtistAndTrackInfo(draw_list, audioManager, scale, offset_x, offset_y);
     
-    // Note: Border drawing is now handled separately via DrawBorders().
+    // Note: Borders and status box will be drawn in the overlay.
 }
 
 void UI::Cleanup()
@@ -229,7 +229,7 @@ void UI::DrawSunMask(ImDrawList* draw_list,
     draw_list->AddRectFilled(p1, p2, COLOR_BLACK);
 }
 
-// NEW: DrawBorders draws the outer and inner borders on top of everything.
+// NEW: DrawBorders draws the outer and inner borders on top.
 void UI::DrawBorders(ImDrawList* draw_list, int window_width, int window_height)
 {
     // Outer border: horizontal padding from 2.0 virtual units,
@@ -240,7 +240,6 @@ void UI::DrawBorders(ImDrawList* draw_list, int window_width, int window_height)
     ImVec2 borderTopLeft(padX, padY);
     ImVec2 borderBottomRight(window_width - padX, window_height - padY);
     
-    // Outer border drawn with a thickness of 2.0f.
     draw_list->AddRect(borderTopLeft, borderBottomRight, COLOR_GREEN, 0.0f, 0, 2.0f);
     
     // Inner border: full 2.0 virtual unit padding.
@@ -250,6 +249,43 @@ void UI::DrawBorders(ImDrawList* draw_list, int window_width, int window_height)
     ImVec2 innerBorderTopLeft(borderTopLeft.x + innerPadX, borderTopLeft.y + innerPadY);
     ImVec2 innerBorderBottomRight(borderBottomRight.x - innerPadX, borderBottomRight.y - innerPadY);
     
-    // Inner border drawn with a thickness of 1.0f.
     draw_list->AddRect(innerBorderTopLeft, innerBorderBottomRight, COLOR_GREEN, 0.0f, 0, 1.0f);
+}
+
+// NEW: DrawStatusBox draws a tiny black box with a green border,
+// about the same size as the car sprite (2×2 virtual units),
+// centered horizontally in the inner border and with its top edge
+// aligned to the top of the inner border.
+void UI::DrawStatusBox(ImDrawList* draw_list, int window_width, int window_height, float scale)
+{
+    // Compute outer border as in DrawBorders.
+    float padX = std::round(layout.borderPadding * (window_width / 80.0f));
+    float padY = std::round((layout.borderPadding - 1.0f) * (window_height / 25.0f));
+    ImVec2 borderTopLeft(padX, padY);
+    ImVec2 borderBottomRight(window_width - padX, window_height - padY);
+    
+    // Compute inner border coordinates.
+    float innerPadX = std::round(layout.borderPadding * (window_width / 80.0f));
+    float innerPadY = std::round(layout.borderPadding * (window_height / 25.0f));
+    ImVec2 innerBorderTopLeft(borderTopLeft.x + innerPadX, borderTopLeft.y + innerPadY);
+    ImVec2 innerBorderBottomRight(borderBottomRight.x - innerPadX, borderBottomRight.y - innerPadY);
+    
+    // Compute horizontal center of inner border.
+    float centerX = (innerBorderTopLeft.x + innerBorderBottomRight.x) / 2.0f;
+    
+    // Box size: 2.0 virtual units scaled.
+    float boxSize = 2.0f * scale;
+    
+    // Place the box so that its top edge aligns with the inner border's top,
+    // and its horizontal center is at centerX.
+    float boxX = centerX - boxSize / 2.0f;
+    float boxY = innerBorderTopLeft.y;
+    
+    ImVec2 boxMin(boxX, boxY);
+    ImVec2 boxMax(boxX + boxSize, boxY + boxSize);
+    
+    // Draw the filled black box.
+    draw_list->AddRectFilled(boxMin, boxMax, COLOR_BLACK);
+    // Draw the green border around the box.
+    draw_list->AddRect(boxMin, boxMax, COLOR_GREEN, 0.0f, 0, 1.0f);
 }
