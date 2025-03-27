@@ -58,55 +58,51 @@ struct LayoutConfig {
 };
 
 class UI {
-public:
-    UI();
-    ~UI();
-
-    void Initialize();
-    // Changed Render signature: audioManager is now an IAudioManager&
-    void Render(ImDrawList* draw_list,
-                IAudioManager& audioManager,
-                Sprite& sprite,
-                float scale,
-                float offset_x,
-                float offset_y,
-                int window_width,
-                int window_height);
-    void Cleanup();
-
-    LayoutConfig& GetLayoutConfig() { return layout; }
-
-    // Moved to public so main.cpp can call it.
-    void DrawMaskBars(ImDrawList* draw_list,
-                      float scale,
-                      float offset_x,
-                      float offset_y);
-
-private:
-    void DrawArtistAndTrackInfo(ImDrawList* draw_list,
-                                IAudioManager& audioManager,
-                                float scale,
-                                float offset_x,
-                                float offset_y);
-
-    void DrawProgressLine(ImDrawList* draw_list,
-                          IAudioManager& audioManager,
-                          float scale,
-                          float offset_x,
-                          float offset_y);
-
-    // Volume Indicator drawing.
-    void DrawVolumeSun(ImDrawList* draw_list,
-                       IAudioManager& audioManager,
-                       float scale,
-                       float offset_x,
-                       float offset_y);
-    void DrawSunMask(ImDrawList* draw_list,
-                     float scale,
-                     float offset_x,
-                     float offset_y);
-
-    LayoutConfig layout;
-};
-
-#endif // UI_H
+    public:
+        UI();
+        ~UI();
+    
+        void Initialize();
+        void Render(ImDrawList* draw_list,
+                    IAudioManager& audioManager,
+                    Sprite& sprite,
+                    float scale,
+                    float offset_x,
+                    float offset_y,
+                    int window_width,
+                    int window_height);
+        void Cleanup();
+    
+        LayoutConfig& GetLayoutConfig() { return layout; }
+    
+        // NEW: Make DrawMaskBars and DrawBorders public.
+        void DrawMaskBars(ImDrawList* draw_list, float scale, float offset_x, float offset_y);
+        void DrawBorders(ImDrawList* draw_list, int window_width, int window_height);
+    
+    private:
+        void DrawArtistAndTrackInfo(ImDrawList* draw_list,
+                                    IAudioManager& audioManager,
+                                    float scale,
+                                    float offset_x,
+                                    float offset_y);
+    
+        void DrawProgressLine(ImDrawList* draw_list,
+                              IAudioManager& audioManager,
+                              float scale,
+                              float offset_x,
+                              float offset_y);
+    
+        void DrawVolumeSun(ImDrawList* draw_list,
+                           IAudioManager& audioManager,
+                           float scale,
+                           float offset_x,
+                           float offset_y);
+        void DrawSunMask(ImDrawList* draw_list,
+                         float scale,
+                         float offset_x,
+                         float offset_y);
+    
+        LayoutConfig layout;
+    };
+    
+    #endif // UI_H

@@ -49,29 +49,8 @@ void UI::Render(ImDrawList* draw_list,
     
     // 4) Draw the artist and track info on top.
     DrawArtistAndTrackInfo(draw_list, audioManager, scale, offset_x, offset_y);
-
-    // 5) Draw the custom outer border relative to the physical display edges.
-    // Outer border horizontal padding is computed from 2.0 virtual units,
-    // but vertical padding is reduced by 1.0 virtual unit.
-    float padX = std::round(layout.borderPadding * (window_width / 80.0f));
-    float padY = std::round((layout.borderPadding - 1.0f) * (window_height / 25.0f));
     
-    ImVec2 borderTopLeft(padX, padY);
-    ImVec2 borderBottomRight(window_width - padX, window_height - padY);
-    
-    // Outer border drawn with a thickness of 2.0f.
-    draw_list->AddRect(borderTopLeft, borderBottomRight, COLOR_GREEN, 0.0f, 0, 2.0f);
-    
-    // 6) Draw an inner border inside the outer border.
-    // Here we maintain the full 2.0 virtual unit padding.
-    float innerPadX = std::round(layout.borderPadding * (window_width / 80.0f));
-    float innerPadY = std::round(layout.borderPadding * (window_height / 25.0f));
-    
-    ImVec2 innerBorderTopLeft(borderTopLeft.x + innerPadX, borderTopLeft.y + innerPadY);
-    ImVec2 innerBorderBottomRight(borderBottomRight.x - innerPadX, borderBottomRight.y - innerPadY);
-    
-    // Inner border drawn with a thickness of 1.0f.
-    draw_list->AddRect(innerBorderTopLeft, innerBorderBottomRight, COLOR_GREEN, 0.0f, 0, 1.0f);
+    // Note: Border drawing is now handled separately via DrawBorders().
 }
 
 void UI::Cleanup()
@@ -248,4 +227,29 @@ void UI::DrawSunMask(ImDrawList* draw_list,
     ImVec2 p1 = ToPixels(left, top, scale, offset_x, offset_y);
     ImVec2 p2 = ToPixels(right, bottom, scale, offset_x, offset_y);
     draw_list->AddRectFilled(p1, p2, COLOR_BLACK);
+}
+
+// NEW: DrawBorders draws the outer and inner borders on top of everything.
+void UI::DrawBorders(ImDrawList* draw_list, int window_width, int window_height)
+{
+    // Outer border: horizontal padding from 2.0 virtual units,
+    // vertical padding from (2.0 - 1.0) = 1.0 virtual unit.
+    float padX = std::round(layout.borderPadding * (window_width / 80.0f));
+    float padY = std::round((layout.borderPadding - 1.0f) * (window_height / 25.0f));
+    
+    ImVec2 borderTopLeft(padX, padY);
+    ImVec2 borderBottomRight(window_width - padX, window_height - padY);
+    
+    // Outer border drawn with a thickness of 2.0f.
+    draw_list->AddRect(borderTopLeft, borderBottomRight, COLOR_GREEN, 0.0f, 0, 2.0f);
+    
+    // Inner border: full 2.0 virtual unit padding.
+    float innerPadX = std::round(layout.borderPadding * (window_width / 80.0f));
+    float innerPadY = std::round(layout.borderPadding * (window_height / 25.0f));
+    
+    ImVec2 innerBorderTopLeft(borderTopLeft.x + innerPadX, borderTopLeft.y + innerPadY);
+    ImVec2 innerBorderBottomRight(borderBottomRight.x - innerPadX, borderBottomRight.y - innerPadY);
+    
+    // Inner border drawn with a thickness of 1.0f.
+    draw_list->AddRect(innerBorderTopLeft, innerBorderBottomRight, COLOR_GREEN, 0.0f, 0, 1.0f);
 }

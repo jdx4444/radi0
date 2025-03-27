@@ -253,7 +253,7 @@ int main(int, char**)
         }
         ImGui::End();
 
-        // Draw overlay window for exhaust effect and mask bars.
+        // Draw overlay window for exhaust effect, mask bars, and borders.
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(ImVec2(static_cast<float>(window_width), static_cast<float>(window_height)));
         ImGui::Begin("Exhaust & Mask Overlay", nullptr,
@@ -267,8 +267,10 @@ int main(int, char**)
             exhaustEffect.Update(io.DeltaTime);
             ImDrawList* overlay_draw_list = ImGui::GetWindowDrawList();
             exhaustEffect.Draw(overlay_draw_list);
-            // Draw mask bars on top of the exhaust effect.
+            // Draw mask bars.
             ui.DrawMaskBars(overlay_draw_list, scale, offset_x, offset_y);
+            // Draw borders on top.
+            ui.DrawBorders(overlay_draw_list, window_width, window_height);
         }
         ImGui::End();
 
