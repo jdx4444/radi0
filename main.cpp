@@ -271,7 +271,6 @@ int main(int, char**)
             exhaustEffect.Draw(overlay_draw_list);
             ui.DrawMaskBars(overlay_draw_list, scale, offset_x, offset_y);
             ui.DrawBorders(overlay_draw_list, window_width, window_height);
-            ui.DrawStatusBox(overlay_draw_list, window_width, window_height, scale);
         }
         ImGui::End();
 
