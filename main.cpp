@@ -190,10 +190,8 @@ int main(int, char**)
                                 audioManager->Play();
                             }
                         } else { // currentAudioMode == BLUETOOTH_MODE
-                            // Switch to USB mode if USB drive is available.
                             if (directoryExists("/media/jdx4444/Mustick")) {
                                 audioManager->Shutdown();
-                                // Delay briefly to allow the USB drive to become available.
                                 SDL_Delay(1500);
                                 audioManager = std::make_unique<USBAudioManager>();
                                 currentAudioMode = USB_MODE;
@@ -244,6 +242,7 @@ int main(int, char**)
 
         audioManager->Update(io.DeltaTime);
 
+        // Draw your main UI window.
         ImGuiWindowFlags wf = ImGuiWindowFlags_NoResize |
                               ImGuiWindowFlags_NoMove |
                               ImGuiWindowFlags_NoTitleBar |
@@ -256,10 +255,22 @@ int main(int, char**)
         ui.Render(draw_list, *audioManager, sprite, scale, offset_x, offset_y, window_width, window_height);
         ImGui::End();
 
-        // Update and draw the exhaust effect on the background draw list.
-        exhaustEffect.Update(io.DeltaTime);
-        ImDrawList* bg_draw_list = ImGui::GetBackgroundDrawList();
-        exhaustEffect.Draw(bg_draw_list);
+        // Create an overlay window to draw the exhaust effect.
+        ImGui::SetNextWindowPos(ImVec2(0, 0));
+        ImGui::SetNextWindowSize(ImVec2(static_cast<float>(window_width), static_cast<float>(window_height)));
+        ImGui::Begin("Exhaust Overlay", nullptr,
+                     ImGuiWindowFlags_NoTitleBar |
+                     ImGuiWindowFlags_NoResize |
+                     ImGuiWindowFlags_NoMove |
+                     ImGuiWindowFlags_NoScrollbar |
+                     ImGuiWindowFlags_NoInputs |
+                     ImGuiWindowFlags_NoBackground);
+        {
+            exhaustEffect.Update(io.DeltaTime);
+            ImDrawList* overlay_draw_list = ImGui::GetWindowDrawList();
+            exhaustEffect.Draw(overlay_draw_list);
+        }
+        ImGui::End();
 
         ImGui::Render();
         glViewport(0, 0, window_width, window_height);
