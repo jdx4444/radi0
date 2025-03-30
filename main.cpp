@@ -174,40 +174,38 @@ int main(int, char**)
                         done = true;
                         break;
                         case SDLK_e:
-                            switchInProgress.store(true);
-                            if (currentAudioMode == USB_MODE) {
-                                auto tempBt = std::make_unique<BluetoothAudioManager>();
-                                if (!tempBt->Initialize() || !tempBt->IsPaired()) {
-                                    printf("No paired phone found. Remaining in USB mode.\n");
+                        switchInProgress.store(true);
+                        if (currentAudioMode == USB_MODE) {
+                            auto tempBt = std::make_unique<BluetoothAudioManager>();
+                            if (!tempBt->Initialize() || !tempBt->IsPaired()) {
+                                printf("No paired phone found. Remaining in USB mode.\n");
+                            } else {
+                                audioManager->Shutdown();
+                                audioManager = std::move(tempBt);
+                                currentAudioMode = BLUETOOTH_MODE;
+                                printf("Switched to Bluetooth Audio Manager.\n");
+                                audioManager->SetVolume(20);  // Set default low volume
+                                audioManager->Play();
+                            }
+                        } else { // currentAudioMode == BLUETOOTH_MODE
+                            if (directoryExists("/media/jdx4444/Mustick")) {
+                                audioManager->Shutdown();
+                                SDL_Delay(1500);
+                                audioManager = std::make_unique<USBAudioManager>();
+                                currentAudioMode = USB_MODE;
+                                printf("Switched to USB Audio Manager.\n");
+                                if (!audioManager->Initialize()) {
+                                    printf("Failed to reinitialize USB Audio Manager.\n");
                                 } else {
-                                    audioManager->Shutdown();
-                                    audioManager = std::move(tempBt);
-                                    currentAudioMode = BLUETOOTH_MODE;
-                                    printf("Switched to Bluetooth Audio Manager.\n");
                                     audioManager->SetVolume(20);  // Set default low volume
                                     audioManager->Play();
-                                    // Force metadata refresh immediately.
-                                    dynamic_cast<BluetoothAudioManager*>(audioManager.get())->ForceMetadataRefresh();
                                 }
                             } else {
-                                if (directoryExists("/media/jdx4444/Mustick")) {
-                                    audioManager->Shutdown();
-                                    SDL_Delay(1500);
-                                    audioManager = std::make_unique<USBAudioManager>();
-                                    currentAudioMode = USB_MODE;
-                                    printf("Switched to USB Audio Manager.\n");
-                                    if (!audioManager->Initialize()) {
-                                        printf("Failed to reinitialize USB Audio Manager.\n");
-                                    } else {
-                                        audioManager->SetVolume(20);  // Set default low volume
-                                        audioManager->Play();
-                                    }
-                                } else {
-                                    printf("USB drive not available. Remaining in Bluetooth mode.\n");
-                                }
+                                printf("USB drive not available. Remaining in Bluetooth mode.\n");
                             }
-                            switchInProgress.store(false);
-                            break;
+                        }
+                        switchInProgress.store(false);
+                        break;
                     case SDLK_SPACE:
                         if (audioManager->GetState() == PlaybackState::Playing)
                             audioManager->Pause();

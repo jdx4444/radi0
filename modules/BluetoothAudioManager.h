@@ -38,9 +38,6 @@ public:
         
     // Inline method to check if a phone is paired (i.e. if MediaPlayer1 was found).
     bool IsPaired() const { return !current_player_path.empty(); }
-        
-    // NEW: Force a metadata refresh (by triggering AutoRefresh()).
-    void ForceMetadataRefresh();
     
 private:
     // MediaPlayer1 object path from DBus.
