@@ -675,6 +675,10 @@ void BluetoothAudioManager::AutoRefresh() {
     }).detach();
 }
 
+void BluetoothAudioManager::ForceMetadataRefresh() {
+    AutoRefresh();
+}
+
 // NEW: Query the current Playback Position from the media player.
 float BluetoothAudioManager::QueryCurrentPlaybackPosition() {
     if (current_player_path.empty() || !dbus_conn) {
