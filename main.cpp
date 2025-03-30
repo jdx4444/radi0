@@ -141,6 +141,7 @@ int main(int, char**)
         printf("Failed to initialize audio manager.\n");
         return -1;
     }
+    audioManager->SetVolume(20); // Set default volume low
     audioManager->Play();
 
     Sprite sprite;
