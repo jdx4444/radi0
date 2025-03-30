@@ -173,7 +173,7 @@ int main(int, char**)
                     case SDLK_x:
                         done = true;
                         break;
-                    case SDLK_e:
+                        case SDLK_e:
                         switchInProgress.store(true);
                         if (currentAudioMode == USB_MODE) {
                             auto tempBt = std::make_unique<BluetoothAudioManager>();
@@ -184,9 +184,10 @@ int main(int, char**)
                                 audioManager = std::move(tempBt);
                                 currentAudioMode = BLUETOOTH_MODE;
                                 printf("Switched to Bluetooth Audio Manager.\n");
+                                audioManager->SetVolume(20);  // Set default low volume
                                 audioManager->Play();
                             }
-                        } else {
+                        } else { // currentAudioMode == BLUETOOTH_MODE
                             if (directoryExists("/media/jdx4444/Mustick")) {
                                 audioManager->Shutdown();
                                 SDL_Delay(1500);
@@ -196,6 +197,7 @@ int main(int, char**)
                                 if (!audioManager->Initialize()) {
                                     printf("Failed to reinitialize USB Audio Manager.\n");
                                 } else {
+                                    audioManager->SetVolume(20);  // Set default low volume
                                     audioManager->Play();
                                 }
                             } else {
