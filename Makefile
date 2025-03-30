@@ -16,7 +16,7 @@ SOURCES = main.cpp \
           backends/imgui_impl_sdl2.cpp \
           backends/imgui_impl_opengl3.cpp
 
-OUTPUT = radi0
+OUTPUT = radi0x
 
 all: deps $(OUTPUT)
 
