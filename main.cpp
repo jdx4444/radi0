@@ -91,7 +91,7 @@ int main(int, char**)
         return -1;
     }
     SDL_SetRelativeMouseMode(SDL_TRUE);
-    printf("Cursor state after disabling: %d\n", SDL_ShowCursor(-1));
+    //printf("Cursor state after disabling: %d\n", SDL_ShowCursor(-1));
     SDL_GLContext gl_context = SDL_GL_CreateContext(window);
     if (!gl_context)
     {
@@ -131,10 +131,10 @@ int main(int, char**)
     std::unique_ptr<IAudioManager> audioManager;
     if (currentAudioMode == USB_MODE) {
          audioManager = std::make_unique<USBAudioManager>();
-         printf("Using USB Audio Manager.\n");
+         //printf("Using USB Audio Manager.\n");
     } else {
          audioManager = std::make_unique<BluetoothAudioManager>();
-         printf("Using Bluetooth Audio Manager.\n");
+         //printf("Using Bluetooth Audio Manager.\n");
     }
     if (!audioManager->Initialize())
     {
