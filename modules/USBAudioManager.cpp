@@ -286,24 +286,21 @@ bool USBAudioManager::scanUSBDirectory() {
     return !playlist.empty();
 }
 
-// Loads the current track into memory using SDL_RWops.
+// -----------------------------------------------------------------------------
+// Music Loading Function
+// -----------------------------------------------------------------------------
+// Previously, the track was loaded into memory via SDL_RWops and Mix_LoadMUS_RW.
+// Now the track is loaded directly from the file path, reading off the USB directly.
 void USBAudioManager::loadCurrentTrack() {
     if (playlist.empty())
         return;
     unloadCurrentTrack();
     const TrackInfo &track = playlist[currentTrackIndex];
     
-    // Open the file in binary mode.
-    SDL_RWops* rw = SDL_RWFromFile(track.filePath.c_str(), "rb");
-    if (!rw) {
-        std::cerr << "Failed to open file " << track.filePath << "\n";
-        return;
-    }
-    // Load the music from the RWops.
-    // The second parameter (1) tells SDL_mixer to free the RWops automatically.
-    currentMusic = Mix_LoadMUS_RW(rw, 1);
+    // Directly load the music from the USB using the file path.
+    currentMusic = Mix_LoadMUS(track.filePath.c_str());
     if (!currentMusic) {
-        std::cerr << "Failed to load track from memory: " << Mix_GetError() << "\n";
+        std::cerr << "Failed to load track from file: " << Mix_GetError() << "\n";
     }
 }
 
