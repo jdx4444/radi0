@@ -10,13 +10,18 @@
 #include <random>
 #include <vector>
 
-// Path where the USB flash drive is mounted
-static const std::string USB_MOUNT_PATH = "/media/jdx4444/Mustick";
-
 // Utility function to check if a directory exists
 static bool directoryExists(const std::string &path) {
     struct stat info;
     return (stat(path.c_str(), &info) == 0 && (info.st_mode & S_IFDIR));
+}
+
+// Function to get the USB mount path dynamically based on the current username.
+// It assumes that the USB is named "Mustick".
+static std::string getUSBMountPath() {
+    const char* username = getenv("USER");
+    std::string user = (username) ? username : "default";
+    return "/media/" + user + "/Mustick";
 }
 
 // Updated utility function to parse a filename into artist, title, and duration.
@@ -88,8 +93,8 @@ USBAudioManager::~USBAudioManager() {
 }
 
 bool USBAudioManager::Initialize() {
-    if (!directoryExists(USB_MOUNT_PATH)) {
-        std::cerr << "USB drive not found at " << USB_MOUNT_PATH << "\n";
+    if (!directoryExists(getUSBMountPath())) {
+        std::cerr << "USB drive not found at " << getUSBMountPath() << "\n";
         return false;
     }
     // Clear any previous playlist
@@ -264,16 +269,17 @@ float USBAudioManager::GetGain() const {
 // Private Helper Functions
 // -----------------------------------------------------------------------------
 bool USBAudioManager::scanUSBDirectory() {
-    DIR* dir = opendir(USB_MOUNT_PATH.c_str());
+    std::string mountPath = getUSBMountPath();
+    DIR* dir = opendir(mountPath.c_str());
     if (!dir) {
-        std::cerr << "Failed to open USB directory: " << USB_MOUNT_PATH << "\n";
+        std::cerr << "Failed to open USB directory: " << mountPath << "\n";
         return false;
     }
     struct dirent* entry;
     while ((entry = readdir(dir)) != nullptr) {
         std::string filename = entry->d_name;
         if (filename.length() > 4 && filename.substr(filename.length() - 4) == ".mp3") {
-            std::string fullPath = USB_MOUNT_PATH + "/" + filename;
+            std::string fullPath = mountPath + "/" + filename;
             TrackInfo info;
             info.filePath = fullPath;
             float fileDuration = 0.0f;
