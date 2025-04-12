@@ -1,12 +1,15 @@
 #ifndef BLUETOOTH_AUDIO_MANAGER_H
 #define BLUETOOTH_AUDIO_MANAGER_H
 
+// warning
+// ----------------------------------------------------
+// Work in progress -- this code does nothing currently
+// ----------------------------------------------------
+
 #include "IAudioManager.h"
 #include <string>
 #include <dbus/dbus.h>
 
-
-// ...
 class BluetoothAudioManager : public IAudioManager {
 public:
     BluetoothAudioManager();
@@ -40,7 +43,7 @@ public:
     bool IsPaired() const { return !current_player_path.empty(); }
     
 private:
-    // MediaPlayer1 object path from DBus.
+    // MediaPlayer1 object path from DBus
     std::string current_player_path;
     
     std::string current_track_title;
@@ -62,13 +65,13 @@ private:
     void HandlePropertiesChanged(DBusMessage* msg);
     void HandleInterfacesAdded(DBusMessage* msg);
     
-    // Query current playback position (in seconds).
+    // Query current playback position (in seconds)
     float QueryCurrentPlaybackPosition();
     
-    // Query current media player status (e.g., "playing", "paused").
+    // Query current media player status (e.g., "playing", "paused")
     std::string QueryMediaPlayerStatus();
     
-    // Automatically refresh metadata by toggling playback.
+    // Automatically refresh metadata by toggling playback
     void AutoRefresh();
     
     void SendVolumeUpdate(int vol);

@@ -12,14 +12,13 @@ void ExhaustEffect::Trigger(const ImVec2& position) {
               << numParticles << " particles at position (" 
               << position.x << ", " << position.y << ")." << std::endl;
     
-    particles.clear();  // Start fresh.
+    particles.clear();  // Start freshhh
     for (int i = 0; i < numParticles; ++i) {
         Particle p;
         // All particles start at the given position.
         p.position = position;
         
-        // Instead of evenly spacing, we add a random offset to the central angle.
-        // Central angle is 180° (leftward) in radians.
+        // Central angle is 180° (leftward) in radians
         float centralAngle = 180.0f * 3.1415926f / 180.0f;
         // Random offset between -20° and +20° (in radians)
         float offsetDeg = (std::rand() % 41) - 20; // random integer in [-20, 20]
@@ -27,11 +26,11 @@ void ExhaustEffect::Trigger(const ImVec2& position) {
         float angle = centralAngle + offsetRad;
         std::cout << "DEBUG: Particle " << i << " angle (deg): " << (angle * 180.0f / 3.1415926f) << std::endl;
         
-        // Set speed: 5 to 10 pixels per second.
+        // Set speed: 5 to 10 pixels per second
         float speed = 14.0f + (std::rand() % 6);
         p.velocity = ImVec2(std::cos(angle) * speed, std::sin(angle) * speed);
         
-        // Short lifetime: between 0.5 and 0.7 seconds.
+        // Short lifetime: between 0.5 and 0.7 seconds
         p.initialLifetime = p.lifetime = 1.5f + (std::rand() % 21) / 100.0f;
         
         particles.push_back(p);
@@ -59,7 +58,7 @@ void ExhaustEffect::Update(float deltaTime) {
 void ExhaustEffect::Draw(ImDrawList* draw_list) {
     for (const auto& p : particles) {
         float alpha = p.lifetime / p.initialLifetime;
-        // Use the UI green color (109,254,149) with alpha modulation.
+        // Green
         ImU32 color = IM_COL32(109, 254, 149, static_cast<int>(alpha * 255));
         // Draw a 2x2 pixel square.
         ImVec2 pos = p.position;

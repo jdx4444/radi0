@@ -7,9 +7,9 @@
 #include <cstring>
 #include <thread>
 #include <chrono>
-#include <cstdio>  // Added for popen and pclose
+#include <cstdio> 
 
-// Helper method to call a DBus method.
+// Helper method to call  DBus method
 static DBusMessage* CallMethod(DBusConnection* conn, const char* destination, const char* path,
                                const char* interface, const char* method) {
     DBusMessage* msg = dbus_message_new_method_call(destination, path, interface, method);
@@ -29,7 +29,7 @@ static DBusMessage* CallMethod(DBusConnection* conn, const char* destination, co
     return reply;
 }
 
-// NEW: Helper function to get the default sink name dynamically.
+// Helper function to get the default sink name dynamically
 static std::string GetDefaultSink() {
     std::string defaultSink;
     FILE* pipe = popen("pactl info", "r");
@@ -61,7 +61,7 @@ static std::string GetDefaultSink() {
 // -----------------------------------------------------------------------------
 BluetoothAudioManager::BluetoothAudioManager()
     : state(PlaybackState::Stopped),
-      volume(20),  // initial volume (about 16%)
+      volume(20),  // initial volume 
       current_player_path(""),
       current_track_title(""),
       current_track_artist(""),
@@ -424,12 +424,12 @@ bool BluetoothAudioManager::GetManagedObjects() {
 }
 
 void BluetoothAudioManager::ListenForSignals() {
-    // Listen for PropertiesChanged signals.
+    // Listen for PropertiesChanged signals
     const char* rule_props = "type='signal',interface='org.freedesktop.DBus.Properties',member='PropertiesChanged',sender='org.bluez'";
     dbus_bus_add_match(dbus_conn, rule_props, NULL);
     std::cout << "DEBUG: Listening for DBus PropertiesChanged signals...\n";
 
-    // Listen for InterfacesAdded signals.
+    // Listen for InterfacesAdded signals
     const char* rule_ifadded = "type='signal',interface='org.freedesktop.DBus.ObjectManager',member='InterfacesAdded',sender='org.bluez'";
     dbus_bus_add_match(dbus_conn, rule_ifadded, NULL);
     dbus_connection_flush(dbus_conn);
@@ -484,7 +484,7 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
         dbus_message_iter_get_basic(&entry_iter, &key);
         dbus_message_iter_next(&entry_iter);
         
-        // Process Metadata/Track changes.
+        // Process Metadata/Track changes
         if (strcmp(key, "Metadata") == 0 || strcmp(key, "Track") == 0) {
             int variant_type = dbus_message_iter_get_arg_type(&entry_iter);
             if (variant_type == DBUS_TYPE_VARIANT) {
@@ -548,7 +548,7 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                 }
             }
         }
-        // Process "Status" changes.
+        // Proces "Status" changes
         else if (strcmp(key, "Status") == 0) {
             int type = dbus_message_iter_get_arg_type(&entry_iter);
             if (type == DBUS_TYPE_VARIANT) {
@@ -573,7 +573,7 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                 }
             }
         }
-        // Process "Volume" changes.
+        // Process volume changes
         else if (strcmp(key, "Volume") == 0) {
             int type = dbus_message_iter_get_arg_type(&entry_iter);
             if (type == DBUS_TYPE_VARIANT) {
@@ -587,7 +587,7 @@ void BluetoothAudioManager::HandlePropertiesChanged(DBusMessage* msg) {
                 }
             }
         }
-        // Process "Position" updates.
+        // Process playback position updates
         else if (strcmp(key, "Position") == 0) {
             if (state == PlaybackState::Playing) {
                 int type = dbus_message_iter_get_arg_type(&entry_iter);
@@ -651,7 +651,7 @@ void BluetoothAudioManager::HandleInterfacesAdded(DBusMessage* msg) {
         if (interface_name && strcmp(interface_name, "org.bluez.MediaPlayer1") == 0) {
             std::cout << "DEBUG: New MediaPlayer1 interface added at: " << object_path << "\n";
             current_player_path = object_path;
-            // If metadata hasn't been loaded yet, trigger an auto-refresh unconditionally.
+            // If metadata hasn't been loaded yet, trigger an auto-refresh unconditionally
             if (current_track_title.empty() && !autoRefreshed) {
                 autoRefreshed = true;
                 AutoRefresh();
@@ -662,7 +662,7 @@ void BluetoothAudioManager::HandleInterfacesAdded(DBusMessage* msg) {
     }
 }
 
-// NEW: Automatically refresh metadata by toggling playback.
+// Automatically refresh metadata by toggling playback.
 void BluetoothAudioManager::AutoRefresh() {
     std::thread([this](){
         // Wait a little longer to allow the media player to settle.
@@ -675,7 +675,7 @@ void BluetoothAudioManager::AutoRefresh() {
     }).detach();
 }
 
-// NEW: Query the current Playback Position from the media player.
+// Query the current Playback Position from the media player.
 float BluetoothAudioManager::QueryCurrentPlaybackPosition() {
     if (current_player_path.empty() || !dbus_conn) {
         return 0.0f;

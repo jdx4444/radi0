@@ -28,7 +28,7 @@ void Sprite::UpdatePosition(float progress_fraction,
     float total_movement = (line_pixel_end - line_pixel_start);
     float new_x = line_pixel_start + total_movement * progress_fraction;
     
-    // Position vertically based on sprite_base_y.
+    // Position vertically based on sprite_base_y
     float new_y = sprite_base_y * scale + offset_y;
     new_x += sprite_x_offset * scale;
     new_y += sprite_y_offset * scale;
@@ -37,7 +37,7 @@ void Sprite::UpdatePosition(float progress_fraction,
 
 void Sprite::Draw(ImDrawList* draw_list, ImU32 color)
 {
-    // Updated sprite pattern: 21 columns x 11 rows.
+    // 1's are freen, 0's empty, 2's black (array size can be chnaged)
     const int SPRITE_WIDTH = 21;
     const int SPRITE_HEIGHT = 11;
     const int sprite_pattern[SPRITE_HEIGHT][SPRITE_WIDTH] = {
@@ -76,8 +76,6 @@ void Sprite::Draw(ImDrawList* draw_list, ImU32 color)
 }
 
 // NEW method: returns the exhaust emission position.
-// Adjusted to move the starting position closer to the car sprite.
-// Previously: return ImVec2(position.x - 5.0f, position.y + size.y / 2.0f);
 ImVec2 Sprite::GetExhaustPosition() const {
     return ImVec2(position.x - 3.0f, position.y + size.y / 2.0f);
 }

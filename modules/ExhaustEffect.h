@@ -7,11 +7,11 @@
 class ExhaustEffect {
 public:
     ExhaustEffect();
-    // Trigger a new exhaust puff at the given position.
+    // Trigger a new exhaust puff at the given position
     void Trigger(const ImVec2& position);
-    // Update particles based on delta time.
+    // Update particles based on delta time
     void Update(float deltaTime);
-    // Draw particles to the provided draw list.
+    // Draw particles to the provided draw list
     void Draw(ImDrawList* draw_list);
     
 private:

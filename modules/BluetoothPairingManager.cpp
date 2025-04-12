@@ -2,16 +2,18 @@
 #include <iostream>
 #include <cstring>
 
+//work in progress vvv
+
 // Constructor: Initialize members.
 BluetoothPairingManager::BluetoothPairingManager()
     : dbus_conn(nullptr),
       waitingForPairing(false),
       pendingMessage(nullptr),
-      defaultPin("0000") // Default PIN code; adjust as needed.
+      defaultPin("0000") // default PIN code
 {
 }
 
-// Destructor: Clean up any pending message and the DBus connection.
+// Destructor: Clean up any pending message and the DBus connection
 BluetoothPairingManager::~BluetoothPairingManager() {
     if (pendingMessage) {
         dbus_message_unref(pendingMessage);
@@ -24,7 +26,7 @@ BluetoothPairingManager::~BluetoothPairingManager() {
     std::cout << "DEBUG: BluetoothPairingManager shutdown.\n";
 }
 
-// Initialize the DBus connection and register the pairing agent.
+// Initialize the DBus connection and register the pairing agent
 bool BluetoothPairingManager::Initialize() {
     DBusError err;
     dbus_error_init(&err);
@@ -45,12 +47,12 @@ bool BluetoothPairingManager::Initialize() {
         return false;
     }
 
-    // Add a filter so that our callback is called for messages to our agent.
+    // Add a filter so that our callback is called for messages to our agent
     dbus_connection_add_filter(dbus_conn, DBusMessageFilter, this, nullptr);
     return true;
 }
 
-// Registers the pairing agent with BlueZ via the AgentManager1 interface.
+// registers the pairing agent with BlueZ via the AgentManager1 interface
 bool BluetoothPairingManager::RegisterAgent() {
     const char* agent_path = "/com/yourapp/bluetooth/agent";
     // Use a capability that requires user confirmation (here, KeyboardDisplay).

@@ -9,11 +9,11 @@ public:
     BluetoothPairingManager();
     ~BluetoothPairingManager();
 
-    // Initializes the DBus connection and registers the pairing agent.
+    // Initializes the DBus connection and registers the pairing agent
     bool Initialize();
     // Processes any pending DBus messages (call this periodically in your main loop)
     void Process();
-    // Call this when the user presses "m" to confirm a pending pairing request.
+    // Call this when the user presses "m" to confirm a pending pairing request
     void HandleMKey();
 
 private:

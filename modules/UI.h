@@ -26,8 +26,8 @@ struct LayoutConfig {
     // -----------------------
     float spriteXOffset     = 0.0f;
     float spriteYOffset     = -8.0f;           // unchanged
-    float spriteBaseY       = 28.25f - 5.0f;     // originally 28.25, now 23.25
-    float spriteXCorrection = -0.150f;          // unchanged
+    float spriteBaseY       = 28.25f - 5.0f;     // 
+    float spriteXCorrection = -0.150f;          // finnicky 
 
     // -----------------------
     // Volume Indicator (Sun/Moon) – Circular Path
@@ -36,25 +36,22 @@ struct LayoutConfig {
     float indicatorCenterY = 8.5f;  
     float indicatorRadius  = 10.0f;  
 
-    float sunDiameter = 3.0f;   // ~48 px at scale=16
-    float sunMaskTop = 22.0f - 5.0f;    // now 17.0
-    float sunMaskBottom = 30.0f - 5.0f; // now 25.0
+    float sunDiameter = 3.0f;   // 
+    float sunMaskTop = 22.0f - 5.0f;   
+    float sunMaskBottom = 30.0f - 5.0f; 
 
     // -----------------------
     // Artist & Track Text
     // -----------------------
     float artistTextX    = 15.0f;
-    float artistTextY    = 23.0f - 5.0f;   // now 18.0.
+    float artistTextY    = 23.0f - 5.0f;   
     float artistTextWidth = 25.0f;
 
-    float trackTextX     = 65.0f - 25.0f;  // i.e. 40.0f.
-    float trackTextY     = 23.0f - 5.0f;     // now 18.0f.
+    float trackTextX     = 65.0f - 25.0f; 
+    float trackTextY     = 23.0f - 5.0f;    
     float trackTextWidth  = 25.0f;
 
-    // -----------------------
-    // New: Border Padding for UI
-    // -----------------------
-    float borderPadding = 2.0f;  // Padding in virtual units.
+    float borderPadding = 2.0f; 
 };
 
 class UI {
@@ -75,7 +72,7 @@ public:
 
     LayoutConfig& GetLayoutConfig() { return layout; }
 
-    // Public methods for drawing mask bars and borders.
+    // Public methods for drawing mask bars and borders
     void DrawMaskBars(ImDrawList* draw_list, float scale, float offset_x, float offset_y);
     void DrawBorders(ImDrawList* draw_list, int window_width, int window_height);
 

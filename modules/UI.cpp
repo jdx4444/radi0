@@ -8,7 +8,6 @@
 const ImU32 COLOR_GREEN = IM_COL32(109, 254, 149, 255);
 const ImU32 COLOR_BLACK = IM_COL32(0, 0, 0, 255);
 
-// A constant for PI.
 static const float PI = 3.1415926f;
 
 UI::UI() {}
@@ -16,7 +15,7 @@ UI::~UI() {}
 
 void UI::Initialize()
 {
-    // No special initialization needed.
+    // vldkmlvkmdlkgduuuuuuuur
 }
 
 void UI::Render(ImDrawList* draw_list,
@@ -28,13 +27,13 @@ void UI::Render(ImDrawList* draw_list,
                 int window_width,
                 int window_height)
 {
-    // 1) Draw the volume indicator (sun/moon) behind the progress line.
+    // 1) Draw the volume indicator (sun/moon) behind the progress line
     DrawVolumeSun(draw_list, audioManager, scale, offset_x, offset_y);
     
-    // 2) Draw the progress line.
+    // 2) Draw the progress line
     DrawProgressLine(draw_list, audioManager, scale, offset_x, offset_y);
     
-    // 3) Draw the car sprite and its mask bars.
+    // 3) Draw the car sprite and its mask bars
     constexpr float spriteVirtualWidth = 19 * 0.16f; // ~3.04 virtual units.
     float effectiveStartX = layout.progressBarStartX - spriteVirtualWidth + layout.spriteXCorrection;
     float effectiveEndX   = layout.progressBarEndX + layout.spriteXCorrection;
@@ -47,10 +46,10 @@ void UI::Render(ImDrawList* draw_list,
     sprite.Draw(draw_list, COLOR_GREEN);
     DrawMaskBars(draw_list, scale, offset_x, offset_y);
     
-    // 4) Draw the artist and track info on top.
+    // 4) Draw the artist and track info on top
     DrawArtistAndTrackInfo(draw_list, audioManager, scale, offset_x, offset_y);
     
-    // Note: Borders are now drawn separately via DrawBorders() in the overlay.
+    // Note**** Borders are now drawn separately via DrawBorders() in the overlay
 }
 
 void UI::Cleanup()
@@ -69,7 +68,7 @@ void UI::DrawArtistAndTrackInfo(ImDrawList* draw_list,
     if (artist_name.empty()) artist_name = "Unknown Artist";
     if (track_name.empty()) track_name  = "Unknown Track";
     
-    // Artist text region.
+    // Artist text region
     ImVec2 artistPos = ToPixels(layout.artistTextX, layout.artistTextY, scale, offset_x, offset_y);
     float artistRegionWidth_px = layout.artistTextWidth * scale;
     ImGui::SetWindowFontScale(1.6f);
@@ -132,13 +131,13 @@ void UI::DrawMaskBars(ImDrawList* draw_list,
                       float offset_x,
                       float offset_y)
 {
-    float mask_height = 3.0f; // Keep the mask height as is.
+    float mask_height = 3.0f; // 
 
-    // Left mask bar: from the left edge (0.0f) to progressBarStartX.
+    // Left mask bar: from the left edge 0.0f
     ImVec2 left_top  = ToPixels(0.0f, layout.progressBarY - mask_height, scale, offset_x, offset_y);
     ImVec2 left_bot  = ToPixels(layout.progressBarStartX, layout.progressBarY + mask_height, scale, offset_x, offset_y);
 
-    // Right mask bar: from progressBarEndX to the right edge (80.0f).
+    // Right mask bar: right edge 80.0f
     ImVec2 right_top = ToPixels(layout.progressBarEndX, layout.progressBarY - mask_height, scale, offset_x, offset_y);
     ImVec2 right_bot = ToPixels(80.0f, layout.progressBarY + mask_height, scale, offset_x, offset_y);
 
@@ -229,7 +228,7 @@ void UI::DrawSunMask(ImDrawList* draw_list,
     draw_list->AddRectFilled(p1, p2, COLOR_BLACK);
 }
 
-// NEW: DrawBorders draws the outer and inner borders on top.
+// NEW: DrawBorders draws the outer and inner borders on top
 void UI::DrawBorders(ImDrawList* draw_list, int window_width, int window_height)
 {
     // Outer border: horizontal padding from 2.0 virtual units,
