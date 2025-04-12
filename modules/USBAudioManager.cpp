@@ -10,18 +10,24 @@
 #include <random>
 #include <vector>
 
-// Path where the USB flash drive is mounted.
-static const std::string USB_MOUNT_PATH = "/media/jdx4444/Mustick";
-
-// Utility function to check if a directory exists.
+// Utility function to check if a directory exists
 static bool directoryExists(const std::string &path) {
     struct stat info;
     return (stat(path.c_str(), &info) == 0 && (info.st_mode & S_IFDIR));
 }
 
+// Function to get the USB mount path dynamically based on the current username.
+// It assumes that the USB is named "Mustick".
+static std::string getUSBMountPath() {
+    const char* username = getenv("USER");
+    std::string user = (username) ? username : "default";
+    return "/media/" + user + "/Mustick";
+}
+
 // Updated utility function to parse a filename into artist, title, and duration.
 // Expects the filename in the format: "Artist Name - Track Name - XmYYs.mp3"
 // For example: "Tigers Jaw - Do You Really Wanna Know - 3m45s.mp3"
+// matches script here: 
 static void parseFilename(const std::string &filename, std::string &artist, std::string &title, float &duration) {
     // Remove extension.
     std::string base = filename;
@@ -41,7 +47,7 @@ static void parseFilename(const std::string &filename, std::string &artist, std:
     }
     parts.push_back(base.substr(start));
     
-    // Expecting three parts: artist, title, and duration in "XmYYs" format.
+    // Expecting three parts: artist, title, and duration in "XmYYs" format
     if (parts.size() >= 3) {
         artist = parts[0];
         title = parts[1];
@@ -60,7 +66,7 @@ static void parseFilename(const std::string &filename, std::string &artist, std:
             duration = 0.0f;
         }
     } else if (parts.size() == 2) {
-        // Fallback if duration is not provided.
+        // Fallback if duration is not provided
         artist = parts[0];
         title = parts[1];
         duration = 0.0f;
@@ -87,22 +93,22 @@ USBAudioManager::~USBAudioManager() {
 }
 
 bool USBAudioManager::Initialize() {
-    if (!directoryExists(USB_MOUNT_PATH)) {
-        std::cerr << "USB drive not found at " << USB_MOUNT_PATH << "\n";
+    if (!directoryExists(getUSBMountPath())) {
+        std::cerr << "USB drive not found at " << getUSBMountPath() << "\n";
         return false;
     }
-    // Clear any previous playlist.
+    // Clear any previous playlist
     playlist.clear();
 
-    // Wait a short time to allow the USB drive to settle.
+    // Wait a short time to allow the USB drive to settle
     SDL_Delay(1000);  // 1 second delay
 
-    // (Re)initialize the audio subsystem for this manager.
+    // (Reeeee)initialize the audio subsystem for this manager.
     if (SDL_Init(SDL_INIT_AUDIO) < 0) {
         std::cerr << "SDL audio initialization failed: " << SDL_GetError() << "\n";
         return false;
     }
-    // Increased chunk size from 2048 to 4096 to help reduce crackling.
+    // Increased chunk size from 2048 to 4096 to help reduce crackling (testing fine so far)
     const int audioFrequency = 44100;
     const int audioFormat = MIX_DEFAULT_FORMAT;
     const int audioChannels = 2;
@@ -111,7 +117,7 @@ bool USBAudioManager::Initialize() {
         std::cerr << "SDL_mixer could not initialize! SDL_mixer Error: " << Mix_GetError() << "\n";
         return false;
     }
-    // Scan the USB directory for MP3 files.
+    // Scan the USB directory for MP3 files
     if (!scanUSBDirectory()) {
         std::cerr << "No MP3 files found on USB drive.\n";
         return false;
@@ -124,7 +130,7 @@ bool USBAudioManager::Initialize() {
         std::shuffle(playlist.begin(), playlist.end(), g);
         currentTrackIndex = 0;
     }
-    // Load the first track.
+    // Load first trak
     loadCurrentTrack();
     return true;
 }
@@ -189,7 +195,7 @@ void USBAudioManager::SetVolume(int vol) {
     if (effectiveVolume > MIX_MAX_VOLUME)
         effectiveVolume = MIX_MAX_VOLUME;
     Mix_VolumeMusic(effectiveVolume);
-    // Note: GetVolume() returns baseVolume, so the UI sees the full range.
+    // Note: GetVolume() returns baseVolume, so the UI sees the full range
 }
 
 int USBAudioManager::GetVolume() const {
@@ -203,7 +209,7 @@ PlaybackState USBAudioManager::GetState() const {
 void USBAudioManager::Update(float delta_time) {
     if (state == PlaybackState::Playing) {
         playbackPosition += delta_time;
-        // If music has finished playing, automatically move to the next track.
+        // If music has finished playing, automatically move to the next track
         if (!Mix_PlayingMusic()) {
             NextTrack();
         }
@@ -248,10 +254,10 @@ float USBAudioManager::GetCurrentPlaybackPosition() const {
     return playbackPosition;
 }
 
-// New methods for gain adjustment.
+// New methods for gain adjustment to match bt volume
 void USBAudioManager::SetGain(float factor) {
     gainFactor = factor;
-    // Reapply volume with the new gain factor.
+    // Reapply volume with the new gain factor
     SetVolume(baseVolume);
 }
 
@@ -263,20 +269,21 @@ float USBAudioManager::GetGain() const {
 // Private Helper Functions
 // -----------------------------------------------------------------------------
 bool USBAudioManager::scanUSBDirectory() {
-    DIR* dir = opendir(USB_MOUNT_PATH.c_str());
+    std::string mountPath = getUSBMountPath();
+    DIR* dir = opendir(mountPath.c_str());
     if (!dir) {
-        std::cerr << "Failed to open USB directory: " << USB_MOUNT_PATH << "\n";
+        std::cerr << "Failed to open USB directory: " << mountPath << "\n";
         return false;
     }
     struct dirent* entry;
     while ((entry = readdir(dir)) != nullptr) {
         std::string filename = entry->d_name;
         if (filename.length() > 4 && filename.substr(filename.length() - 4) == ".mp3") {
-            std::string fullPath = USB_MOUNT_PATH + "/" + filename;
+            std::string fullPath = mountPath + "/" + filename;
             TrackInfo info;
             info.filePath = fullPath;
             float fileDuration = 0.0f;
-            // Parse artist, title, and duration from the filename.
+            // Parse artist, title, and duration from the filename 
             parseFilename(filename, info.artist, info.title, fileDuration);
             info.duration = fileDuration; // duration in seconds
             playlist.push_back(info);
@@ -286,14 +293,14 @@ bool USBAudioManager::scanUSBDirectory() {
     return !playlist.empty();
 }
 
-// Loads the current track into memory using SDL_RWops.
+// Loads the current track into memory using SDL_RWops
 void USBAudioManager::loadCurrentTrack() {
     if (playlist.empty())
         return;
     unloadCurrentTrack();
     const TrackInfo &track = playlist[currentTrackIndex];
     
-    // Open the file in binary mode.
+    // open the file in binary mode
     SDL_RWops* rw = SDL_RWFromFile(track.filePath.c_str(), "rb");
     if (!rw) {
         std::cerr << "Failed to open file " << track.filePath << "\n";
@@ -307,7 +314,7 @@ void USBAudioManager::loadCurrentTrack() {
     }
 }
 
-// Frees the currently loaded track.
+// Frees the currently loaded track
 void USBAudioManager::unloadCurrentTrack() {
     if (currentMusic) {
         Mix_FreeMusic(currentMusic);
